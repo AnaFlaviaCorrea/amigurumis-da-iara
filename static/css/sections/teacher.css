@@ -1,0 +1,552 @@
+/* =====================================================
+   SEÇÃO PROFESSORA
+===================================================== */
+
+.teacher-section {
+
+    background: linear-gradient(180deg,
+            var(--background) 0%,
+            var(--background-light) 100%);
+
+    padding: 160px 0;
+
+    overflow: hidden;
+
+}
+
+.teacher-header {
+
+    text-align: center;
+
+    max-width: 900px;
+
+    margin: 0 auto 80px;
+
+}
+
+.teacher-header h2 {
+
+    font-family: var(--title);
+
+    font-size: 62px;
+
+    color: var(--primary);
+
+    margin: 18px 0;
+
+    line-height: 1.1;
+
+}
+
+.teacher-header p {
+
+    font-size: 20px;
+
+    line-height: 1.9;
+
+    color: var(--text-light);
+
+    max-width: 760px;
+
+    margin: auto;
+
+}
+
+.section-tag {
+
+    display: inline-block;
+
+    background: var(--gold-light);
+
+    color: var(--secondary);
+
+    padding: 10px 24px;
+
+    border-radius: 50px;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    letter-spacing: 2px;
+
+    text-transform: uppercase;
+
+
+
+
+}
+
+.teacher-photo {
+
+    display: flex;
+
+    justify-content: center;
+
+    margin-bottom: 45px;
+
+    box-shadow: var(--shadow-heavy);
+
+}
+
+.teacher-photo img {
+
+    width: 360px;
+
+    height: 470px;
+
+    object-fit: cover;
+
+    border-radius: 30px;
+
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .12);
+
+    transition: .4s;
+
+}
+
+.teacher-photo img:hover {
+
+    transform: translateY(-8px);
+
+}
+
+.teacher-quote {
+
+    max-width: 850px;
+
+    margin: 0 auto 90px;
+
+    padding: 50px;
+
+    background: var(--background-section);
+
+    border-radius: 30px;
+
+    text-align: center;
+
+    font-family: var(--title);
+
+    font-size: 34px;
+
+    font-style: italic;
+
+    color: var(--primary);
+
+    line-height: 1.6;
+
+    position: relative;
+
+}
+
+.teacher-quote::before {
+
+    content: "❝";
+
+    font-size: 90px;
+
+    color: rgba(185, 140, 74, .20);
+
+    position: absolute;
+
+    left: -30px;
+
+    top: -40px;
+
+}
+
+.teacher-quote::after {
+
+    content: "❞";
+
+    font-size: 90px;
+
+    color: rgba(185, 140, 74, .20);
+
+    position: absolute;
+
+    right: -20px;
+
+    bottom: -60px;
+
+}
+
+.teacher-story {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 70px;
+
+    max-width: 1100px;
+
+    margin: 0 auto 100px;
+
+}
+
+.teacher-story h3 {
+
+    font-family: var(--title);
+
+    font-size: 46px;
+
+    color: var(--primary);
+
+    margin-bottom: 25px;
+
+}
+
+.teacher-story p {
+
+    font-size: 19px;
+
+    line-height: 2;
+
+    color: var(--text-light);
+
+}
+
+.teacher-stats {
+
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 25px;
+
+    margin: 100px auto;
+
+    max-width: 1100px;
+
+}
+
+.stat-card {
+
+    background: white;
+
+    border-radius: 22px;
+
+    padding: 40px;
+
+    text-align: center;
+
+    box-shadow:
+
+        0 10px 30px rgba(0, 0, 0, .05);
+
+    transition: .4s;
+
+}
+
+.stat-card:hover {
+
+    transform: translateY(-10px);
+
+    box-shadow:
+
+        0 25px 60px rgba(0, 0, 0, .12);
+
+}
+
+.stat-card h3 {
+
+    font-family: var(--title);
+
+    color: var(--secondary);
+
+    font-size: 48px;
+
+    margin-bottom: 10px;
+
+}
+
+.stat-card p {
+
+    color: var(--text-light);
+
+    font-size: 17px;
+
+}
+
+.teacher-gallery {
+
+    margin-top: 110px;
+
+    text-align: center;
+
+}
+
+.teacher-gallery h3 {
+
+    font-family: var(--title);
+
+    font-size: 48px;
+
+    color: var(--primary);
+
+    margin-bottom: 60px;
+
+}
+
+.gallery-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(3, 1fr);
+
+    gap: 30px;
+
+}
+
+.gallery-card {
+
+    background: white;
+
+    border-radius: 25px;
+
+    overflow: hidden;
+
+    box-shadow:
+
+        0 15px 40px rgba(0, 0, 0, .08);
+
+    transition: .35s;
+
+}
+
+.gallery-card:hover {
+
+    transform: translateY(-10px);
+
+}
+
+.gallery-card img {
+
+    width: 100%;
+
+    height: 270px;
+
+    object-fit: cover;
+
+}
+
+.gallery-card span {
+
+    display: block;
+
+    padding: 22px;
+
+    font-weight: 600;
+
+    color: var(--primary);
+
+}
+
+.teacher-cta {
+
+    margin-top: 130px;
+
+    padding: 90px;
+
+    border-radius: 35px;
+
+    background:
+
+        linear-gradient(135deg,
+
+            #B98C4A,
+
+            #D7B47D);
+
+    text-align: center;
+
+    color: white;
+
+}
+
+.teacher-cta h2 {
+
+    font-family: var(--title);
+
+    font-size: 54px;
+
+    margin-bottom: 20px;
+
+}
+
+.teacher-cta p {
+
+    font-size: 20px;
+
+    max-width: 700px;
+
+    margin: auto;
+
+    margin-bottom: 45px;
+
+    opacity: .95;
+
+}
+
+/*====================================================
+        PORTFÓLIO
+====================================================*/
+
+.teacher-portfolio {
+
+    margin-top: 140px;
+
+}
+
+.teacher-portfolio h3 {
+
+    text-align: center;
+
+    font-family: var(--title);
+
+    font-size: 52px;
+
+    color: var(--primary);
+
+    margin-bottom: 20px;
+
+}
+
+.teacher-portfolio p {
+
+    text-align: center;
+
+    color: var(--text-light);
+
+    max-width: 700px;
+
+    margin: 0 auto 70px;
+
+    font-size: 19px;
+
+    line-height: 1.8;
+
+}
+
+.portfolio-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(3, 1fr);
+
+    gap: 35px;
+
+    align-items: start;
+
+}
+
+.portfolio-card {
+
+    background: var(--background-light);
+
+    border-radius: 28px;
+
+    overflow: hidden;
+
+    box-shadow: var(--shadow-light);
+
+    transition: .35s;
+
+    cursor: pointer;
+
+}
+
+.portfolio-card img {
+
+    width: 100%;
+
+    height: 480px;
+
+    object-fit: cover;
+
+    display: block;
+
+    object-position: center 20%;
+
+}
+
+.portfolio-card:hover {
+
+    transform: translateY(-10px);
+
+    box-shadow: var(--shadow-heavy);
+
+}
+
+.portfolio-card h4 {
+
+    text-align: center;
+
+    padding: 25px;
+
+    margin: 0;
+
+    font-size: 24px;
+
+    font-family: var(--title);
+
+    color: var(--primary);
+
+}
+
+@media(max-width:992px) {
+
+    .teacher-story {
+
+        grid-template-columns: 1fr;
+
+    }
+
+    .teacher-stats {
+
+        grid-template-columns: repeat(2, 1fr);
+
+    }
+
+    .gallery-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+
+    }
+
+    .teacher-header h2 {
+
+        font-size: 44px;
+
+    }
+
+    .teacher-cta {
+
+        padding: 60px 30px;
+
+    }
+
+    .teacher-cta h2 {
+
+        font-size: 38px;
+
+    }
+
+    .portfolio-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+
+    }
+
+}
+
+@media(max-width:768px) {
+
+    .portfolio-grid {
+
+        grid-template-columns: 1fr;
+
+    }
+
+}

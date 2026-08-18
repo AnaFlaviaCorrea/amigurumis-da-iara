@@ -1,0 +1,128 @@
+{% load static %}
+
+<section class="teacher-section" id="professora">
+  <div class="container">
+    <!-- Cabeçalho -->
+
+    <div class="teacher-header">
+      <span class="section-tag">Conheça a artista</span>
+
+      <h2>Cada peça começa com uma história.</h2>
+
+      <p>Antes de ensinar, passei anos transformando fios em lembranças únicas. Hoje compartilho essa arte com outras crocheteiras que desejam criar peças capazes de emocionar.</p>
+    </div>
+
+    <!-- Foto -->
+
+    <div class="teacher-photo">
+      <img src="{% static 'img/teacher/iara.jpeg' %}" alt="Iara" />
+    </div>
+
+    <!-- Frase -->
+
+    <blockquote class="teacher-quote">"Cada peça nasce com um propósito: transformar uma lembrança em algo eterno."</blockquote>
+
+    <!-- História -->
+
+    <div class="teacher-story">
+      <div>
+        <h3>Prazer, eu sou a Iara.</h3>
+
+        <p>Há anos dedico minhas mãos ao universo do amigurumi, transformando fios em lembranças que emocionam famílias.</p>
+
+        <p>Cada pet, santinha, boneca ou peça personalizada nasce de uma história única e recebe atenção a cada detalhe.</p>
+      </div>
+
+      <div>
+        <p>Meu trabalho vai muito além do crochê.
+
+          Produzo peças totalmente personalizadas utilizando técnicas de crochê e feltragem para alcançar um resultado realista e cheio de significado.</p>
+
+        <p>Hoje compartilho esse conhecimento em turmas presenciais, ensinando cada etapa com acompanhamento individual para que minhas alunas também consigam emocionar através da arte.</p>
+      </div>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="teacher-stats">
+      <div class="stat-card">
+        <h3>+100</h3>
+
+        <p>Peças produzidas</p>
+      </div>
+
+      <div class="stat-card">
+        <h3>24h</h3>
+
+        <p>Curso Intensivo</p>
+      </div>
+
+      <div class="stat-card">
+        <h3>6</h3>
+
+        <p>Alunas por turma</p>
+      </div>
+
+      <div class="stat-card">
+        <h3>100%</h3>
+
+        <p>Acompanhamento individual</p>
+      </div>
+    </div>
+
+    <!-- Portfólio -->
+
+    <div class="teacher-portfolio">
+      <h3>Muito além dos Pets</h3>
+
+      <p>Conheça algumas das peças desenvolvidas pela Iara.</p>
+
+      <div class="portfolio-grid">
+        <div class="portfolio-card">
+          <img src="{% static 'img/teacher/dog.jpeg' %}" alt="Pet" />
+
+          <h4>Pets</h4>
+        </div>
+
+        <div class="portfolio-card">
+          <img src="{% static 'img/teacher/Santinha site.png' %}" alt="Santinha" />
+
+          <h4>Santinhas</h4>
+        </div>
+
+        <div class="portfolio-card">
+          <img src="{% static 'img/teacher/Cerejinha.png' %}" alt="Boneca" />
+
+          <h4>Bonecas</h4>
+        </div>
+
+        <div class="portfolio-card">
+          <img src="{% static 'img/teacher/Gatos.png' %}" alt="Gato" />
+
+          <h4>Gatos</h4>
+        </div>
+
+        <div class="portfolio-card">
+          <img src="{% static 'img/teacher/Cavalo.png' %}" alt="Cavalo" />
+
+          <h4>Cavalos</h4>
+        </div>
+
+        <div class="portfolio-card">
+          <img src="{% static 'img/teacher/Tenista.png' %}" alt="Personalizado" />
+
+          <h4>Personalizados</h4>
+          <div class="portfolio-footer">
+            {% comment %} <a href="{% url 'portfolio' %}" class="btn btn-gold">Ver Portfólio Completo</a> {% endcomment %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="teacher-cta">
+    <h2>Agora é a sua vez de transformar fios em lembranças.</h2>
+
+    <p>Aprenda presencialmente todas as técnicas utilizadas pela Iara para criar peças únicas.</p>
+
+    <a href="#inscricao" class="btn btn-gold">Quero aprender com a Iara</a>
+  </div>
+</section>

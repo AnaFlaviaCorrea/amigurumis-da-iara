@@ -1,0 +1,34 @@
+:root{
+
+    /* CORES */
+
+    --primary:#6A4A3C;
+    --secondary:#B98C4A;
+    --background:#F8F5F0;
+    --background-light:#FFFFFF;
+    --section:#EFE8DD;
+    --gold-light:#F4E8D5;
+
+    --text:#444444;
+    --text-light:#666666;
+
+    /* FONTES */
+
+    --title:'Cormorant Garamond', serif;
+    --body:'Montserrat', sans-serif;
+
+    /* SOMBRAS */
+
+    --shadow:
+
+        0 20px 60px rgba(0,0,0,.08);
+
+    /* BORDAS */
+
+    --radius:18px;
+
+    /* TRANSIÇÕES */
+
+    --transition:.35s;
+
+}

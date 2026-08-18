@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+Portfólio | Amigurumis da Iara
+{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+
+<section class="portfolio-hero">
+
+    <div class="container">
+
+        <span class="section-tag">
+            Portfólio
+        </span>
+
+        <h1>
+            Peças que contam histórias
+        </h1>
+
+        <p>
+            Cada peça criada pela Iara é desenvolvida manualmente,
+            unindo técnica, delicadeza e atenção aos detalhes para
+            transformar lembranças em arte.
+        </p>
+
+    </div>
+
+</section>
+
+
+<!-- NAVEGAÇÃO -->
+
+<section class="portfolio-navigation">
+
+    <div class="container">
+
+        <a href="#pets">Pets</a>
+
+        <a href="#santinhas">Santinhas</a>
+
+        <a href="#bonecas">Bonecas</a>
+
+        <a href="#gatos">Gatos</a>
+
+        <a href="#cavalos">Cavalos</a>
+
+        <a href="#personalizados">Personalizados</a>
+
+    </div>
+
+</section>
+
+
+<!-- PETS -->
+
+<section class="portfolio-category" id="pets">
+
+    <div class="container">
+
+        {% include "components/portfolio/category_header.html"
+            with
+            title="Pets Realistas"
+            description="Réplicas desenvolvidas a partir das fotografias enviadas pelos clientes."
+        %}
+
+        <div class="gallery-grid">
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/pets/pet01.jpg"
+                alt="Pet Realista"
+                featured=True
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/pets/pet02.jpg"
+                alt="Pet Realista"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/pets/pet03.jpg"
+                alt="Pet Realista"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/pets/pet04.jpg"
+                alt="Pet Realista"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/pets/pet05.jpg"
+                alt="Pet Realista"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/pets/pet06.jpg"
+                alt="Pet Realista"
+            %}
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- SANTINHAS -->
+
+<section class="portfolio-category" id="santinhas">
+
+    <div class="container">
+
+        {% include "components/portfolio/category_header.html"
+            with
+            title="Santinhas"
+            description="Peças religiosas produzidas artesanalmente."
+        %}
+
+
+        <div class="gallery-grid">
+
+             {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/santinhas/santinha01.jpg"
+                alt="Santinha"
+                featured=True
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/santinhas/santinha02.jpg"
+                alt="Santinha"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/santinhas/santinha03.jpg"
+                alt="Santinha"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/santinhas/santinha04.jpg"
+                alt="Santinha"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/santinhas/santinha05.jpg"
+                alt="Santinha"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/santinhas/santinha06.jpg"
+                alt="Santinha"
+            %}
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- BONECAS -->
+
+<section class="portfolio-category" id="bonecas">
+
+    <div class="container">
+
+        {% include "components/portfolio/category_header.html"
+            with
+            title="Bonecas"
+            description=""
+        %}
+
+
+        <div class="gallery-grid">
+
+             {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/bonecas/boneca01.jpg"
+                alt="Boneca"
+                featured=True
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/bonecas/boneca02.jpg"
+                alt="Boneca"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/bonecas/boneca03.jpg"
+                alt="Boneca"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/bonecas/boneca04.jpg"
+                alt="Boneca"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/bonecas/boneca05.jpg"
+                alt="Boneca"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/bonecas/boneca06.jpg"
+                alt="Boneca"
+            %}
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- GATOS -->
+
+<section class="portfolio-category" id="gatos">
+
+    <div class="container">
+
+        {% include "components/portfolio/category_header.html"
+            with
+            title="Gatos"
+            description="Peças religiosas produzidas artesanalmente."
+        %}
+
+
+        <div class="gallery-grid">
+
+             {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/gatos/gato01.jpg"
+                alt="Gato"
+                featured=True
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/gatos/gato02.jpg"
+                alt="Gato"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/gatos/gato03.jpg"
+                alt="Gato"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/gatos/gato04.jpg"
+                alt="Gato"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/gatos/gato05.jpg"
+                alt="Gato"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/gatos/gato06.jpg"
+                alt="Gato"
+            %}
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- CAVALOS -->
+
+<section class="portfolio-category" id="cavalos">
+
+    <div class="container">
+
+        {% include "components/portfolio/category_header.html"
+            with
+            title="Cavalos"
+            description="Peças religiosas produzidas artesanalmente."
+        %}
+
+
+        <div class="gallery-grid">
+
+             {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/cavalos/cavalo01.jpg"
+                alt="Cavalo"
+                featured=True
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/cavalos/cavalo02.jpg"
+                alt="Cavalo"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/cavalos/cavalo03.jpg"
+                alt="Cavalo"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/cavalos/cavalo04.jpg"
+                alt="Cavalo"
+            %}
+
+            
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- PERSONALIZADOS -->
+
+<section class="portfolio-category" id="personalizados">
+
+    <div class="container">
+
+        {% include "components/portfolio/category_header.html"
+            with
+            title="Personalizados"
+            description="Peças religiosas produzidas artesanalmente."
+        %}
+
+
+        <div class="gallery-grid">
+
+             {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/personalizados/personalizado01.jpg"
+                alt="Personalizado"
+                featured=True
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/personalizados/personalizado02.jpg"
+                alt="Personalizado"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/personalizados/personalizado03.jpg"
+                alt="Personalizado"
+            %}
+
+            {% include "components/portfolio/gallery_item.html"
+                with
+                image="img/portfolio/personalizados/personalizado04.jpg"
+                alt="Personalizado"
+            %}
+
+           
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- CTA -->
+
+<section class="portfolio-cta">
+
+    <div class="container">
+
+        <h2>
+            Gostou do meu trabalho?
+        </h2>
+
+        <p>
+            Será um prazer criar uma peça exclusiva para você ou receber você em uma das próximas turmas do curso presencial.
+        </p>
+
+        <div class="portfolio-buttons">
+
+            <a href="{% url 'home' %}#inscricao" class="btn btn-gold">
+                Quero conhecer o curso
+            </a>
+
+            <a href="https://wa.me/5548996123670" class="btn btn-outline" target="_blank">
+                Solicitar orçamento
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

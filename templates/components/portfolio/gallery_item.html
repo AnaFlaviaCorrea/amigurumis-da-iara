@@ -1,0 +1,21 @@
+{% load static %}
+
+<div class="gallery-item {% if featured %}featured{% endif %}">
+
+    <img
+        src="{% static image %}"
+        alt="{{ alt }}">
+
+    <div class="gallery-overlay">
+
+        {% if title %}
+            <h4>{{ title }}</h4>
+        {% endif %}
+
+        {% if subtitle %}
+            <p>{{ subtitle }}</p>
+        {% endif %}
+
+    </div>
+
+</div>
