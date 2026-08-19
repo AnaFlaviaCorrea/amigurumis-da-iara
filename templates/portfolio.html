@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+  Portfólio | Amigurumis da Iara
+{% endblock %}
+
+{% block content %}
+  <!-- HERO -->
+
+  <section class="portfolio-hero">
+    <div class="container">
+      <span class="section-tag">Portfólio</span>
+
+      <h1>Peças que contam histórias</h1>
+
+      <p>Cada peça criada pela Iara é desenvolvida manualmente, unindo técnica, delicadeza e atenção aos detalhes para transformar lembranças em arte.</p>
+    </div>
+  </section>
+
+  <!-- NAVEGAÇÃO -->
+
+  <section class="portfolio-navigation">
+    <div class="container">
+      <a href="#pets">Pets</a>
+
+      <a href="#santinhas">Santinhas</a>
+
+      <a href="#bonecas">Bonecas</a>
+
+      <a href="#gatos">Gatos</a>
+
+      <a href="#cavalos">Cavalos</a>
+
+      <a href="#personalizados">Personalizados</a>
+    </div>
+  </section>
+
+  <!-- PETS -->
+
+  <section class="portfolio-category" id="pets">
+    <div class="container">
+      {% include 'components/portfolio/category_header.html' with title='Pets Realistas' description='Réplicas desenvolvidas a partir das fotografias enviadas pelos clientes, preservando expressões, cores e características que tornam cada companheiro único.' %}
+
+      <div class="gallery-grid">
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet01.jpg' alt='Pet Realista' featured=True %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet02.jpg' alt='Pet Realista' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet03.jpg' alt='Pet Realista' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet04.jpg' alt='Pet Realista' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet05.jpg' alt='Pet Realista' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet06.jpg' alt='Pet Realista' %}
+      </div>
+    </div>
+  </section>
+
+  <!-- SANTINHAS -->
+
+  <section class="portfolio-category" id="santinhas">
+    <div class="container">
+      {% include 'components/portfolio/category_header.html' with title='Arte Sacra' description='Peças religiosas confeccionadas artesanalmente, incluindo santos, anjos, presépios e outras representações da fé, sempre com delicadeza e riqueza de detalhes.' %}
+
+      <div class="gallery-grid">
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha01.jpg' alt='Santinha' featured=True %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha02.jpg' alt='Santinha' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha03.jpg' alt='Santinha' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha04.jpg' alt='Santinha' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha05.jpg' alt='Santinha' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha06.jpg' alt='Santinha' %}
+      </div>
+    </div>
+  </section>
+
+  <!-- BONECAS -->
+
+  <section class="portfolio-category" id="bonecas">
+    <div class="container">
+      {% include 'components/portfolio/category_header.html' with title='Bonecas' description='Bonecas autorais e personalizadas, criadas com atenção aos mínimos detalhes para transformar histórias e lembranças em peças únicas.' %}
+
+      <div class="gallery-grid">
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca01.png' alt='Boneca' featured=True %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca02.png' alt='Boneca' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca03.png' alt='Boneca' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca04.png' alt='Boneca' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca05.png' alt='Boneca' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca06.png' alt='Boneca' %}
+      </div>
+    </div>
+  </section>
+
+  <!-- PERSONALIZADOS -->
+
+  <section class="portfolio-category" id="personalizados">
+    <div class="container">
+      {% include 'components/portfolio/category_header.html' with title='Criações Personalizadas' description='Peças religiosas produzidas artesanalmente.' %}
+
+      <div class="gallery-grid">
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/personalizados/personalizado01.jpg' alt='Personalizado' featured=True %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/personalizados/personalizado02.jpg' alt='Personalizado' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/personalizados/personalizado03.jpg' alt='Personalizado' %}
+
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/personalizados/personalizado04.jpg' alt='Personalizado' %}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+
+  <section class="portfolio-cta">
+    <div class="container">
+      <h2>Gostou do meu trabalho?</h2>
+
+      <p>Será um prazer criar uma peça exclusiva para você ou receber você em uma das próximas turmas do curso presencial.</p>
+
+      <div class="portfolio-buttons">
+        <a href="{% url 'home' %}#inscricao" class="btn btn-gold">Quero conhecer o curso</a>
+
+        <a href="https://wa.me/5548996123670" class="btn btn-outline" target="_blank">Solicitar orçamento</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

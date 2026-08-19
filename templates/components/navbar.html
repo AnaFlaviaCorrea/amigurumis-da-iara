@@ -1,92 +1,36 @@
-{% comment %}  {% endcomment %} 
+{% comment %} {% endcomment %}
 <nav class="navbar navbar-expand-lg fixed-top custom-navbar">
+  <div class="container">
+    <a class="navbar-brand logo" href="#">
+      <span class="logo-title">Amigurumis da Iara</span>
 
-    <div class="container">
+      <small>Arte que eterniza histórias</small>
+    </a>
 
-        <a class="navbar-brand logo" href="#">
+    <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#menu"><span class="navbar-toggler-icon"></span></button>
 
-            <span class="logo-title">
+    <div class="collapse navbar-collapse" id="menu">
+      <ul class="navbar-nav ms-auto align-items-center">
+        <li class="nav-item">
+          <a class="nav-link" href="#curso">Curso</a>
+        </li>
 
-                Amigurumis da Iara
+        <li class="nav-item">
+          <a href="{% url 'portfolio' %}">Portfólio</a>
+        </li>
 
-            </span>
+        <li class="nav-item">
+          <a class="nav-link" href="#professora">Professora</a>
+        </li>
 
-            <small>
+        <li class="nav-item">
+          <a class="nav-link" href="#faq">FAQ</a>
+        </li>
 
-                Arte que eterniza histórias
-
-            </small>
-
-        </a>
-
-        <button class="navbar-toggler"
-                data-bs-toggle="collapse"
-                data-bs-target="#menu">
-
-            <span class="navbar-toggler-icon"></span>
-
-        </button>
-
-        <div class="collapse navbar-collapse"
-             id="menu">
-
-            <ul class="navbar-nav ms-auto align-items-center">
-
-                <li class="nav-item">
-
-                    <a class="nav-link" href="#curso">
-
-                        Curso
-
-                    </a>
-
-                </li>
-
-                <li class="nav-item">
-
-                    <a class="nav-link" href="#galeria">
-
-                        Galeria
-
-                    </a>
-
-                </li>
-
-                <li class="nav-item">
-
-                    <a class="nav-link" href="#professora">
-
-                        Professora
-
-                    </a>
-
-                </li>
-
-                <li class="nav-item">
-
-                    <a class="nav-link" href="#faq">
-
-                        FAQ
-
-                    </a>
-
-                </li>
-
-                <li class="ms-3">
-
-                    <a href="#inscricao"
-                       class="btn btn-gold">
-
-                        Garantir minha vaga
-
-                    </a>
-
-                </li>
-
-            </ul>
-
-        </div>
-
+        <li class="ms-3">
+          <a href="#inscricao" class="btn btn-gold">Garantir minha vaga</a>
+        </li>
+      </ul>
     </div>
-
+  </div>
 </nav>

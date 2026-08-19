@@ -1,0 +1,388 @@
+/* =====================================================
+   PORTFÓLIO
+===================================================== */
+
+.portfolio-hero{
+
+    padding:170px 0 110px;
+
+    text-align:center;
+
+    background:linear-gradient(
+        180deg,
+        var(--background),
+        var(--background-light)
+    );
+
+}
+
+.portfolio-hero .section-tag{
+
+    margin-bottom:24px;
+
+}
+
+.portfolio-hero h1{
+
+    font-family:var(--title);
+
+    font-size:72px;
+
+    color:var(--primary);
+
+    line-height:1.1;
+
+    margin-bottom:30px;
+
+}
+
+.portfolio-hero p{
+
+    max-width:760px;
+
+    margin:auto;
+
+    font-size:21px;
+
+    color:var(--text-light);
+
+    line-height:1.9;
+
+}
+/* =====================================================
+   NAVEGAÇÃO
+===================================================== */
+
+.portfolio-navigation{
+
+    background:white;
+
+    border-top:1px solid rgba(0,0,0,.05);
+
+    border-bottom:1px solid rgba(0,0,0,.05);
+
+}
+
+.portfolio-navigation .container{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:40px;
+
+    padding:22px 0;
+
+    flex-wrap:wrap;
+
+}
+
+.portfolio-navigation a{
+
+    text-decoration:none;
+
+    color:var(--text);
+
+    font-weight:600;
+
+    transition:.3s;
+
+    position:relative;
+
+}
+
+.portfolio-navigation a::after{
+
+    content:"";
+
+    position:absolute;
+
+    left:0;
+
+    bottom:-8px;
+
+    width:0;
+
+    height:2px;
+
+    background:var(--secondary);
+
+    transition:.3s;
+
+}
+
+.portfolio-navigation a:hover{
+
+    color:var(--secondary);
+
+}
+
+.portfolio-navigation a:hover::after{
+
+    width:100%;
+
+}
+/* =====================================================
+   CATEGORIAS
+===================================================== */
+
+.portfolio-category{
+
+    padding:120px 0;
+
+}
+
+.category-header{
+
+    text-align:center;
+
+    margin-bottom:70px;
+
+}
+
+.category-divider{
+
+    width:70px;
+
+    height:3px;
+
+    background:var(--secondary);
+
+    margin:0 auto 25px;
+
+    display:block;
+
+}
+
+.category-header h2{
+
+    font-family:var(--title);
+
+    font-size:52px;
+
+    color:var(--primary);
+
+    margin-bottom:18px;
+
+}
+
+.category-header p{
+
+    max-width:720px;
+
+    margin:auto;
+
+    font-size:19px;
+
+    line-height:1.9;
+
+    color:var(--text-light);
+
+}
+/* =====================================================
+   GALERIA
+===================================================== */
+
+.gallery-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    grid-auto-rows:280px;
+
+    gap:28px;
+
+}
+.gallery-item.featured{
+
+    grid-column:span 2;
+
+    grid-row:span 2;
+
+}
+.gallery-item{
+
+    position:relative;
+
+    overflow:hidden;
+
+    border-radius:28px;
+
+    cursor:pointer;
+
+    box-shadow:var(--shadow);
+
+    transition:.35s;
+
+}
+.gallery-item img{
+
+    width:100%;
+
+    height:100%;
+
+    object-fit:cover;
+
+    display:block;
+
+    transition:.6s;
+
+}
+.gallery-item:hover{
+
+    transform:translateY(-10px);
+
+    box-shadow:0 35px 90px rgba(0,0,0,.18);
+
+}
+
+.gallery-item:hover img{
+
+    transform:scale(1.08);
+
+}
+.gallery-overlay{
+
+    position:absolute;
+
+    inset:0;
+
+    background:linear-gradient(
+        transparent,
+        rgba(0,0,0,.70)
+    );
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:flex-end;
+
+    padding:30px;
+
+    opacity:0;
+
+    transition:.4s;
+
+}
+
+.gallery-item:hover .gallery-overlay{
+
+    opacity:1;
+
+}
+
+.gallery-overlay h4{
+
+    color:white;
+
+    font-size:26px;
+
+    margin-bottom:8px;
+
+}
+
+.gallery-overlay p{
+
+    color:white;
+
+    opacity:.85;
+
+}
+/* =====================================================
+   CTA
+===================================================== */
+
+.portfolio-cta{
+
+    padding:150px 0;
+
+    text-align:center;
+
+    background:var(--section);
+
+}
+
+.portfolio-cta h2{
+
+    font-family:var(--title);
+
+    font-size:56px;
+
+    color:var(--primary);
+
+    margin-bottom:25px;
+
+}
+
+.portfolio-cta p{
+
+    max-width:720px;
+
+    margin:0 auto 45px;
+
+    font-size:20px;
+
+    color:var(--text-light);
+
+    line-height:1.8;
+
+}
+
+.portfolio-buttons{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:25px;
+
+    flex-wrap:wrap;
+
+}
+@media(max-width:992px){
+
+.gallery-grid{
+
+grid-template-columns:1fr 1fr;
+
+}
+
+.gallery-item.featured{
+
+grid-column:span 2;
+
+}
+
+}
+
+@media(max-width:768px){
+
+.gallery-grid{
+
+grid-template-columns:1fr;
+
+}
+
+.gallery-item.featured{
+
+grid-column:span 1;
+
+grid-row:span 1;
+
+}
+
+.portfolio-hero h1{
+
+font-size:48px;
+
+}
+
+.category-header h2{
+
+font-size:38px;
+
+}
+
+}
