@@ -1,6 +1,6 @@
 {% load static %}
 
-<div class="gallery-item {% if featured %}featured{% endif %}">
+<div class="gallery-item {% if featured %}featured{% endif %} {% if extra %}extra{% endif %}">
 
     <img
         src="{% static image %}"
