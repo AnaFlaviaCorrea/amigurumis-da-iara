@@ -2,7 +2,7 @@
 @import url("layout.css");
 @import url("hero.css");
 @import url("teacher.css");
-@import url("portfolio.css");   /* ← precisa existir */
+@import url("portfolio.css");   
 .hero{
 
     position:relative;

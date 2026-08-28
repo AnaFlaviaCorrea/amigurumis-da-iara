@@ -65,17 +65,17 @@
       {% include 'components/portfolio/category_header.html' with title='Arte Sacra' description='Peças religiosas confeccionadas artesanalmente, incluindo santos, anjos, presépios e outras representações da fé, sempre com delicadeza e riqueza de detalhes.' %}
 
       <div class="gallery-grid">
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha01.jpg' alt='Santinha' featured=True %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha01.png' alt='Nossa Senhora de Aparecida' title='Devoção em Cada Ponto: Nossa Senhora Aparecida' subtitle='Nossa Senhora Aparecida confeccionada em amigurumi com fio 100% algodão, acompanhada de mini terço. Delicadeza, tradição e arte sacra feita à mão' featured=True %}
 
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha02.jpg' alt='Santinha' %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha02.png' alt='Nossa Senhora de Aparecida' title='Nossa Senhora Aparecida Porta-Alianças' subtitle='Imagem de Nossa Senhora Aparecida em amigurumi com almofada porta-alianças branca. O detalhe inesquecível e sagrado para a entrada da sua cerimônia.' %}
 
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha03.jpg' alt='Santinha' %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha03.png' alt='Santinha' title='' subtitle='' %}
 
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha04.jpg' alt='Santinha' %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha04.png' alt='Santinha' title='' subtitle='' %}
 
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha05.jpg' alt='Santinha' %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha05.png' alt='Santinha' title='' subtitle='' %}
 
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha06.jpg' alt='Santinha' %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha06.png' alt='Santinha' title='' subtitle='' %}
       </div>
     </div>
   </section>
@@ -87,7 +87,7 @@
       {% include 'components/portfolio/category_header.html' with title='Bonecas' description='Bonecas autorais e personalizadas, criadas com atenção aos mínimos detalhes para transformar histórias e lembranças em peças únicas.' %}
 
       <div class="gallery-grid">
-        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca01.png' alt='Boneca' featured=True %}
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca01.png' alt='Boneca' title='Boneca Cerejinha' subtitle='Boneca autoral feita em crochê, com acabamento delicado e detalhes personalizados.' featured=True %}
 
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca02.png' alt='Boneca' %}
 
@@ -135,4 +135,25 @@
       </div>
     </div>
   </section>
+  <div class="lightbox" id="portfolioLightbox">
+
+    <button class="lightbox-close" type="button" aria-label="Fechar imagem">
+        ×
+    </button>
+
+    <div class="lightbox-content">
+
+        <img src="" alt="" id="lightboxImage">
+
+        <div class="lightbox-caption">
+
+            <h3 id="lightboxTitle"></h3>
+
+            <p id="lightboxSubtitle"></p>
+
+        </div>
+
+    </div>
+
+</div>
 {% endblock %}
