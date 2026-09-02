@@ -55,7 +55,11 @@
 
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet06.jpg' alt='Pet Realista' %}
       </div>
+        <div class="category-more">
+      <button type="button" class="btn btn-outline show-more-btn">Ver mais</button>
     </div>
+    </div>
+  
   </section>
 
   <!-- SANTINHAS -->
@@ -77,7 +81,11 @@
 
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/santinhas/santinha06.png' alt='Santinha' title='' subtitle='' %}
       </div>
+      <div class="category-more">
+      <button type="button" class="btn btn-outline show-more-btn">Ver mais</button>
     </div>
+    </div>
+    
   </section>
 
   <!-- BONECAS -->
@@ -99,7 +107,11 @@
 
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/bonecas/boneca06.png' alt='Boneca' %}
       </div>
+       <div class="category-more">
+      <button type="button" class="btn btn-outline show-more-btn">Ver mais</button>
     </div>
+    </div>
+   
   </section>
 
   <!-- PERSONALIZADOS -->
@@ -117,7 +129,11 @@
 
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/personalizados/personalizado04.jpg' alt='Personalizado' %}
       </div>
+      <div class="category-more">
+      <button type="button" class="btn btn-outline show-more-btn">Ver mais</button>
     </div>
+    </div>
+    
   </section>
 
   <!-- CTA -->
@@ -136,24 +152,16 @@
     </div>
   </section>
   <div class="lightbox" id="portfolioLightbox">
-
-    <button class="lightbox-close" type="button" aria-label="Fechar imagem">
-        ×
-    </button>
+    <button class="lightbox-close" type="button" aria-label="Fechar imagem">×</button>
 
     <div class="lightbox-content">
+      <img src="" alt="" id="lightboxImage" />
 
-        <img src="" alt="" id="lightboxImage">
+      <div class="lightbox-caption">
+        <h3 id="lightboxTitle"></h3>
 
-        <div class="lightbox-caption">
-
-            <h3 id="lightboxTitle"></h3>
-
-            <p id="lightboxSubtitle"></p>
-
-        </div>
-
+        <p id="lightboxSubtitle"></p>
+      </div>
     </div>
-
-</div>
+  </div>
 {% endblock %}

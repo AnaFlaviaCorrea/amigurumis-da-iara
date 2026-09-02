@@ -399,7 +399,26 @@
     background: var(--secondary);
     color: white;
 }
+/* =====================================================
+   VER MAIS
+===================================================== */
 
+.gallery-item.extra {
+    display: none;
+}
+
+.portfolio-category.expanded .gallery-item.extra {
+    display: flex;
+}
+
+.category-more {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.category-more .btn {
+    cursor: pointer;
+}
 @keyframes lightboxFade {
     from {
         opacity: 0;
