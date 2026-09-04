@@ -39,6 +39,8 @@ document.addEventListener("keydown", (event) => {
 const showMoreButtons = document.querySelectorAll(".show-more-btn");
 
 showMoreButtons.forEach((button) => {
+    const originalText = button.textContent;
+
     button.addEventListener("click", () => {
         const category = button.closest(".portfolio-category");
 
@@ -47,17 +49,7 @@ showMoreButtons.forEach((button) => {
         if (category.classList.contains("expanded")) {
             button.textContent = "Mostrar menos";
         } else {
-            if (category.id === "pets") {
-                button.textContent = "Ver todas as fotos de Pets";
-            } else if (category.id === "santinhas") {
-                button.textContent = "Ver todas as fotos de Arte Sacra";
-            } else if (category.id === "bonecas") {
-                button.textContent = "Ver todas as fotos de Bonecas";
-            } else if (category.id === "personalizados") {
-                button.textContent = "Ver todas as fotos de Projetos Especiais";
-            } else {
-                button.textContent = "Ver todas as fotos";
-            }
+            button.textContent = originalText;
         }
     });
 });

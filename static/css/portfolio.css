@@ -419,6 +419,7 @@
 .category-more .btn {
     cursor: pointer;
 }
+
 @keyframes lightboxFade {
     from {
         opacity: 0;
