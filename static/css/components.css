@@ -25,6 +25,62 @@
     color:white;
 
 }
+/* Botão claro */
+
+.btn-cream {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background: white;
+    color: var(--primary);
+
+    padding: 14px 28px;
+    border: 2px solid white;
+    border-radius: 50px;
+
+    text-decoration: none;
+    font-weight: 600;
+
+    transition: var(--transition);
+}
+
+.btn-cream:hover {
+    background: var(--secondary);
+    border-color: var(--primary);
+    color: white;
+
+    transform: translateY(-3px);
+}
+
+
+/* Botão do WhatsApp */
+
+.btn-whatsapp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #2f8f5b;
+    color: white;
+
+    padding: 14px 28px;
+    border: 2px solid #2f8f5b;
+    border-radius: 50px;
+
+    text-decoration: none;
+    font-weight: 600;
+
+    transition: var(--transition);
+}
+
+.btn-whatsapp:hover {
+    background: #267a4c;
+    border-color: #267a4c;
+    color: white;
+
+    transform: translateY(-3px);
+}
 .custom-navbar{
 
     background:rgba(255,255,255,.95);

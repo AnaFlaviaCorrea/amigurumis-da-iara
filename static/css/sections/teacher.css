@@ -389,6 +389,7 @@
 
 }
 
+
 /*====================================================
         PORTFÓLIO
 ====================================================*/
@@ -417,9 +418,10 @@
     line-height: 1.8;
 
 }
+
 .teacher-portfolio-button {
     margin-top: 50px;
-    text-align: right;
+    text-align: center;
 }
 
 .portfolio-grid {
@@ -541,8 +543,7 @@
 
 }
 
-@media(max-width:768px) {
-
+@media (max-width: 768px) {
     .portfolio-grid {
 
         grid-template-columns: 1fr;
@@ -551,5 +552,55 @@
 
     .portfolio-card img {
         height: 240px;
+    }
+
+    .teacher-section {
+        padding: 90px 0;
+    }
+
+    .teacher-header {
+        margin-bottom: 50px;
+        padding: 0 20px;
+    }
+
+    .teacher-header h2 {
+        font-size: 38px;
+    }
+
+    .teacher-photo img {
+        width: min(320px, 90vw);
+        height: 420px;
+    }
+
+    .teacher-quote {
+        margin: 0 20px 60px;
+        padding: 35px 25px;
+        font-size: 26px;
+    }
+
+    .teacher-story {
+        gap: 20px;
+        padding: 0 20px;
+        margin-bottom: 70px;
+    }
+
+    .teacher-story h3 {
+        font-size: 36px;
+    }
+
+    .teacher-stats {
+        grid-template-columns: 1fr;
+        margin: 60px 20px;
+    }
+
+    .portfolio-grid {
+        width: auto;
+        margin: 0 20px;
+    }
+
+    .teacher-cta {
+        margin-top: 90px;
+        padding: 60px 25px;
+        border-radius: 0;
     }
 }
