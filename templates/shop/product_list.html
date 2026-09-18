@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Loja | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="shop-page">
+  <header class="shop-hero">
+    <div class="container">
+      <span class="section-tag">Feito à mão para emocionar</span>
+      <h1>Escolha uma criação especial</h1>
+      <p>Peças prontas e criações sob encomenda, produzidas com cuidado em cada detalhe.</p>
+    </div>
+  </header>
+
+  <section class="shop-catalog container" aria-labelledby="catalog-title">
+    <div class="shop-toolbar">
+      <div>
+        <p class="shop-eyebrow">Nossa loja</p>
+        <h2 id="catalog-title">Criações disponíveis</h2>
+      </div>
+
+      <form class="shop-filters" method="get">
+        <label>
+          <span>Categoria</span>
+          <select name="categoria" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for category in categories %}
+              <option value="{{ category.slug }}" {% if selected_category == category.slug %}selected{% endif %}>
+                {{ category.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          <span>Disponibilidade</span>
+          <select name="modalidade" onchange="this.form.submit()">
+            <option value="">Todas</option>
+            {% for value, label in product_types.choices %}
+              <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        {% if selected_category or selected_type %}
+          <a href="{% url 'shop:product_list' %}" class="shop-clear-filter">Limpar filtros</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="product-grid">
+      {% for product in products %}
+        <article class="product-card">
+          <a class="product-card-image" href="{{ product.get_absolute_url }}">
+            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" loading="lazy">
+            <span class="product-badge {% if product.product_type == 'made_to_order' %}is-order{% endif %}">
+              {{ product.get_product_type_display }}
+            </span>
+          </a>
+
+          <div class="product-card-content">
+            <p class="product-category">{{ product.category.name }}</p>
+            <h3><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+            <p class="product-description">{{ product.short_description }}</p>
+            <div class="product-card-footer">
+              <strong>R$ {{ product.price|floatformat:2 }}</strong>
+              <a href="{{ product.get_absolute_url }}" class="product-link">Ver detalhes</a>
+            </div>
+          </div>
+        </article>
+      {% empty %}
+        <div class="shop-empty">
+          <h3>Nenhuma peça encontrada</h3>
+          <p>Altere os filtros ou volte em breve para conhecer novas criações.</p>
+          <a href="{% url 'shop:product_list' %}" class="btn btn-gold">Ver todas as peças</a>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

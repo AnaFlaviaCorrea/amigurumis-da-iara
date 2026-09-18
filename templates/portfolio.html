@@ -24,13 +24,9 @@
     <div class="container">
       <a href="#pets">Pets</a>
 
-      <a href="#santinhas">Santinhas</a>
+      <a href="#artesacra">Arte Sacra</a>
 
       <a href="#bonecas">Bonecas</a>
-
-      <a href="#gatos">Gatos</a>
-
-      <a href="#cavalos">Cavalos</a>
 
       <a href="#personalizados">Personalizados</a>
     </div>
@@ -54,8 +50,8 @@
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet05.png' alt='Pet Realista' %}
 
         {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet06.png' alt='Pet Realista' %}
-         <!-- FOTOS EXTRAS -->
-          {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet07.png' alt='Pet Realista' title='' subtitle='' extra=True  %}
+        <!-- FOTOS EXTRAS -->
+        {% include 'components/portfolio/gallery_item.html' with image='img/portfolio/pets/pet07.png' alt='Pet Realista' title='' subtitle='' extra=True %}
       </div>
       <div class="category-more">
         <button type="button" class="btn btn-outline show-more-btn">Ver mais</button>
@@ -65,7 +61,7 @@
 
   <!-- SANTINHAS -->
 
-  <section class="portfolio-category" id="santinhas">
+  <section class="portfolio-category" id="artesacra">
     <div class="container">
       {% include 'components/portfolio/category_header.html' with title='Arte Sacra' description='Peças religiosas confeccionadas artesanalmente, incluindo santos, anjos, presépios e outras representações da fé, sempre com delicadeza e riqueza de detalhes.' %}
 

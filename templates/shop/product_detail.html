@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="product-detail-page">
+  <div class="container">
+    <nav class="shop-breadcrumb" aria-label="Navegação estrutural">
+      <a href="{% url 'shop:product_list' %}">Loja</a>
+      <span aria-hidden="true">/</span>
+      <span>{{ product.name }}</span>
+    </nav>
+
+    <section class="product-detail">
+      <div class="product-gallery">
+        <img class="product-main-image" src="{{ product.main_image.url }}" alt="{{ product.name }}">
+
+        {% if product.images.all %}
+          <div class="product-thumbnails">
+            {% for item in product.images.all %}
+              <img src="{{ item.image.url }}" alt="{{ item.alt_text|default:product.name }}" loading="lazy">
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="product-info">
+        <p class="product-category">{{ product.category.name }}</p>
+        <h1>{{ product.name }}</h1>
+        <p class="product-detail-price">R$ {{ product.price|floatformat:2 }}</p>
+        <p class="product-detail-description">{{ product.description|linebreaksbr }}</p>
+
+        <div class="product-status">
+          <strong>{{ product.get_product_type_display }}</strong>
+          {% if product.product_type == 'ready' %}
+            {% if product.stock > 0 %}
+              <span>{{ product.stock }} unidade{{ product.stock|pluralize }} disponível{{ product.stock|pluralize }}</span>
+            {% else %}
+              <span class="is-unavailable">Produto indisponível</span>
+            {% endif %}
+          {% else %}
+            <span>Produção em até {{ product.production_days }} dias</span>
+          {% endif %}
+        </div>
+
+        {% if product.customizable %}
+          <p class="product-custom-note">Esta criação permite personalização. Os detalhes serão combinados após o pedido.</p>
+        {% endif %}
+
+        {% if product.available %}
+          <button type="button" class="btn btn-gold product-buy-button" disabled>
+            Adicionar ao carrinho — próxima etapa
+          </button>
+        {% endif %}
+
+        <p class="product-payment-note">O carrinho e o pagamento serão habilitados na próxima etapa da implementação.</p>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}
