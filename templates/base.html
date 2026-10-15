@@ -23,14 +23,21 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}" />
     <link rel="stylesheet" href="{% static 'css/layout.css' %}" />
     <link rel="stylesheet" href="{% static 'css/components.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/sections/hero.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/sections/transformation.css' %}" />
     <link rel="stylesheet" href="{% static 'css/sections/teacher.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/shop.css' %}" />
+    {% block extra_css %}{% endblock %}
   </head>
 
   <body>
     {% include 'components/navbar.html' %}
+
+    {% if messages %}
+      <div class="site-messages container" aria-live="polite">
+        {% for message in messages %}
+          <div class="site-message site-message-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     {% block content %}
 
@@ -41,5 +48,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
     <script src="{% static 'js/portfolio.js' %}"></script>
+    {% block extra_js %}{% endblock %}
   </body>
 </html>

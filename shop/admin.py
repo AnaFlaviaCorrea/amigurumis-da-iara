@@ -31,6 +31,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("product_type", "category", "active", "featured")
     search_fields = ("name", "short_description", "description")
     prepopulated_fields = {"slug": ("name",)}
+    readonly_fields = ("portfolio_source", "portfolio_hash")
     inlines = (ProductImageInline,)
 
 

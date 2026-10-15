@@ -38,7 +38,14 @@ class Product(models.Model):
     slug = models.SlugField(max_length=160, unique=True, blank=True)
     short_description = models.CharField("descrição curta", max_length=220)
     description = models.TextField("descrição")
-    price = models.DecimalField("preço", max_digits=10, decimal_places=2)
+    price = models.DecimalField(
+        "preço",
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Obrigatório antes de ativar o produto na loja.",
+    )
     product_type = models.CharField(
         "modalidade",
         max_length=20,
@@ -56,6 +63,21 @@ class Product(models.Model):
     main_image = models.ImageField("imagem principal", upload_to="products/%Y/%m/")
     active = models.BooleanField("ativo", default=True)
     featured = models.BooleanField("destaque", default=False)
+    portfolio_source = models.CharField(
+        "origem no portfólio",
+        max_length=500,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    portfolio_hash = models.CharField(
+        "assinatura da imagem",
+        max_length=64,
+        blank=True,
+        db_index=True,
+        editable=False,
+    )
     created_at = models.DateTimeField("criado em", auto_now_add=True)
     updated_at = models.DateTimeField("atualizado em", auto_now=True)
 
@@ -69,7 +91,9 @@ class Product(models.Model):
 
     def clean(self):
         errors = {}
-        if self.price <= 0:
+        if self.active and self.price is None:
+            errors["price"] = "Informe o preço antes de ativar o produto."
+        elif self.price is not None and self.price <= 0:
             errors["price"] = "O preço deve ser maior que zero."
         if self.product_type == self.ProductType.MADE_TO_ORDER and not self.production_days:
             errors["production_days"] = "Informe o prazo para produzir a encomenda."

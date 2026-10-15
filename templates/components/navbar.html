@@ -26,6 +26,17 @@
         </li>
 
         <li class="nav-item">
+          <a class="nav-link" href="{% url 'shop:product_list' %}">Loja</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link cart-nav-link" href="{% url 'shop:cart_detail' %}">
+            Carrinho
+            {% if cart_item_count %}<span class="cart-count">{{ cart_item_count }}</span>{% endif %}
+          </a>
+        </li>
+
+        <li class="nav-item">
           <a class="nav-link" href="{% url 'home' %}#professora">Professora</a>
         </li>
 
