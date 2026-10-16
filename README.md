@@ -54,6 +54,13 @@ as informações no Admin antes de ativá-los. Imagens já importadas são ignor
 arquivos novos são cadastrados; imagens substituídas são atualizadas; e uma
 imagem apenas renomeada não gera produto duplicado.
 
+## Finalização do pedido
+
+O cliente pode avançar do carrinho para a tela de checkout sem criar uma conta.
+Nela, informa os dados de contato e escolhe entre receber no endereço ou retirar
+com a Iara. O sistema cria o pedido e seus itens como “aguardando pagamento”.
+O cálculo do frete e a cobrança serão integrados nas próximas etapas.
+
 Landing Page desenvolvida em Django para divulgação de cursos presenciais de Pet Realista em Crochê.
 
 ## Tecnologias

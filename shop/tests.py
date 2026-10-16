@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Category, Product
+from .models import Category, Order, OrderItem, Product
 
 
 class ProductModelTests(TestCase):
@@ -231,3 +231,109 @@ class PortfolioImportCommandTests(TestCase):
             call_command("import_portfolio_products", source=source, dry_run=True)
 
             self.assertEqual(Product.objects.count(), 0)
+
+
+class CheckoutTests(TestCase):
+    def setUp(self):
+        category = Category.objects.create(name="Bonecas")
+        self.product = Product.objects.create(
+            category=category,
+            name="Boneca personalizada",
+            short_description="Boneca produzida sob encomenda.",
+            description="Boneca artesanal.",
+            price=Decimal("275.00"),
+            product_type=Product.ProductType.MADE_TO_ORDER,
+            production_days=20,
+            customizable=True,
+            main_image=SimpleUploadedFile("boneca-checkout.jpg", b"imagem", content_type="image/jpeg"),
+        )
+
+    def add_product(self, quantity=1):
+        self.client.post(
+            reverse("shop:cart_add", args=[self.product.id]),
+            {"quantity": quantity},
+        )
+
+    def test_empty_cart_cannot_open_checkout(self):
+        response = self.client.get(reverse("shop:checkout"))
+
+        self.assertRedirects(response, reverse("shop:product_list"))
+
+    def test_pickup_checkout_creates_order_and_clears_cart(self):
+        self.add_product(quantity=2)
+        response = self.client.post(
+            reverse("shop:checkout"),
+            {
+                "full_name": "Ana Cliente",
+                "email": "ana@example.com",
+                "phone": "(48) 99999-9999",
+                "delivery_method": Order.DeliveryMethod.PICKUP,
+                "customer_notes": "Entrar em contato pelo WhatsApp.",
+            },
+        )
+
+        order = Order.objects.get()
+        self.assertRedirects(
+            response,
+            reverse("shop:order_success", args=[order.public_id]),
+        )
+        self.assertEqual(order.subtotal, Decimal("550.00"))
+        self.assertEqual(order.total, Decimal("550.00"))
+        self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertEqual(OrderItem.objects.get().quantity, 2)
+        self.assertEqual(self.client.session.get("cart"), None)
+
+    def test_shipping_requires_address(self):
+        self.add_product()
+        response = self.client.post(
+            reverse("shop:checkout"),
+            {
+                "full_name": "Ana Cliente",
+                "email": "ana@example.com",
+                "phone": "(48) 99999-9999",
+                "delivery_method": Order.DeliveryMethod.SHIPPING,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Informe cep para receber o pedido")
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_shipping_checkout_saves_address(self):
+        self.add_product()
+        response = self.client.post(
+            reverse("shop:checkout"),
+            {
+                "full_name": "Ana Cliente",
+                "email": "ana@example.com",
+                "phone": "(48) 99999-9999",
+                "delivery_method": Order.DeliveryMethod.SHIPPING,
+                "postal_code": "88101-000",
+                "street": "Rua das Flores",
+                "number": "100",
+                "neighborhood": "Campinas",
+                "city": "São José",
+                "state": "sc",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order = Order.objects.get()
+        self.assertEqual(order.state, "SC")
+        self.assertEqual(order.city, "São José")
+
+    def test_success_page_is_limited_to_last_session_order(self):
+        other_order = Order.objects.create(
+            full_name="Outra pessoa",
+            email="outra@example.com",
+            phone="48999999999",
+            delivery_method=Order.DeliveryMethod.PICKUP,
+            subtotal=Decimal("10.00"),
+            total=Decimal("10.00"),
+        )
+
+        response = self.client.get(
+            reverse("shop:order_success", args=[other_order.public_id])
+        )
+
+        self.assertRedirects(response, reverse("shop:product_list"))

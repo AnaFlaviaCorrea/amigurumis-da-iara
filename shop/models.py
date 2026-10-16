@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
@@ -139,3 +141,93 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Imagem de {self.product.name}"
+
+
+class Order(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Aguardando pagamento"
+        PAID = "paid", "Pagamento aprovado"
+        PRODUCTION = "production", "Em produção"
+        READY = "ready", "Pronto para envio ou retirada"
+        SHIPPED = "shipped", "Enviado"
+        COMPLETED = "completed", "Concluído"
+        CANCELLED = "cancelled", "Cancelado"
+
+    class DeliveryMethod(models.TextChoices):
+        SHIPPING = "shipping", "Receber no endereço"
+        PICKUP = "pickup", "Retirar com a Iara"
+
+    public_id = models.UUIDField("código público", default=uuid.uuid4, unique=True, editable=False)
+    full_name = models.CharField("nome completo", max_length=150)
+    email = models.EmailField("e-mail")
+    phone = models.CharField("telefone", max_length=20)
+    delivery_method = models.CharField(
+        "forma de entrega",
+        max_length=20,
+        choices=DeliveryMethod.choices,
+        default=DeliveryMethod.SHIPPING,
+    )
+    postal_code = models.CharField("CEP", max_length=9, blank=True)
+    street = models.CharField("rua", max_length=180, blank=True)
+    number = models.CharField("número", max_length=20, blank=True)
+    complement = models.CharField("complemento", max_length=100, blank=True)
+    neighborhood = models.CharField("bairro", max_length=100, blank=True)
+    city = models.CharField("cidade", max_length=100, blank=True)
+    state = models.CharField("estado", max_length=2, blank=True)
+    customer_notes = models.TextField("observações", blank=True)
+    subtotal = models.DecimalField("subtotal", max_digits=10, decimal_places=2)
+    shipping_cost = models.DecimalField("frete", max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField("total", max_digits=10, decimal_places=2)
+    status = models.CharField(
+        "situação",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField("criado em", auto_now_add=True)
+    updated_at = models.DateTimeField("atualizado em", auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "pedido"
+        verbose_name_plural = "pedidos"
+
+    def __str__(self):
+        return f"Pedido {str(self.public_id)[:8].upper()} — {self.full_name}"
+
+    @property
+    def short_code(self):
+        return str(self.public_id)[:8].upper()
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="pedido",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_items",
+        verbose_name="produto",
+    )
+    product_name = models.CharField("nome do produto", max_length=140)
+    product_type = models.CharField("modalidade", max_length=20, choices=Product.ProductType.choices)
+    unit_price = models.DecimalField("preço unitário", max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField("quantidade")
+    personalization_notes = models.TextField("detalhes da personalização", blank=True)
+
+    class Meta:
+        verbose_name = "item do pedido"
+        verbose_name_plural = "itens do pedido"
+
+    def __str__(self):
+        return f"{self.quantity}× {self.product_name}"
+
+    @property
+    def total_price(self):
+        return self.unit_price * self.quantity

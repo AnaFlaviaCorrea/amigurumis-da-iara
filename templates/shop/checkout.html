@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Finalizar pedido | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="checkout-page">
+  <div class="container">
+    <header class="checkout-header">
+      <span class="section-tag">Finalização</span>
+      <h1>Dados para o pedido</h1>
+      <p>Preencha seus dados e escolha como deseja receber as peças.</p>
+    </header>
+
+    <form method="post" class="checkout-layout" id="checkout-form">
+      {% csrf_token %}
+
+      <section class="checkout-form-card">
+        {% if form.non_field_errors %}
+          <div class="checkout-errors">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <fieldset>
+          <legend>Seus dados</legend>
+          <div class="checkout-grid">
+            {% include "shop/field.html" with field=form.full_name wide=True %}
+            {% include "shop/field.html" with field=form.email %}
+            {% include "shop/field.html" with field=form.phone %}
+          </div>
+        </fieldset>
+
+        <fieldset class="delivery-choice">
+          <legend>Como deseja receber?</legend>
+          {{ form.delivery_method }}
+          {% for error in form.delivery_method.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </fieldset>
+
+        <fieldset id="address-fields">
+          <legend>Endereço de entrega</legend>
+          <div class="checkout-grid">
+            {% include "shop/field.html" with field=form.postal_code %}
+            {% include "shop/field.html" with field=form.street wide=True %}
+            {% include "shop/field.html" with field=form.number %}
+            {% include "shop/field.html" with field=form.complement %}
+            {% include "shop/field.html" with field=form.neighborhood %}
+            {% include "shop/field.html" with field=form.city %}
+            {% include "shop/field.html" with field=form.state %}
+          </div>
+          <p class="checkout-help">O frete será calculado antes do pagamento.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Observações</legend>
+          {% include "shop/field.html" with field=form.customer_notes wide=True %}
+        </fieldset>
+      </section>
+
+      <aside class="checkout-summary">
+        <h2>Resumo do pedido</h2>
+        {% for item in cart_items %}
+          <div class="checkout-summary-item">
+            <span>{{ item.quantity }}× {{ item.product.name }}</span>
+            <strong>R$ {{ item.total_price|floatformat:2 }}</strong>
+          </div>
+        {% endfor %}
+        <div class="checkout-summary-total">
+          <span>Subtotal</span>
+          <strong>R$ {{ cart.get_subtotal|floatformat:2 }}</strong>
+        </div>
+        <p>O pedido será criado como “aguardando pagamento”. Nenhuma cobrança será feita nesta etapa.</p>
+        <button type="submit" class="btn btn-gold">Criar pedido</button>
+        <a href="{% url 'shop:cart_detail' %}">Voltar ao carrinho</a>
+      </aside>
+    </form>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/checkout.js' %}"></script>
+{% endblock %}

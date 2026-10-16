@@ -67,9 +67,9 @@
             <strong>R$ {{ cart.get_subtotal|floatformat:2 }}</strong>
           </div>
           <p>O valor do frete será calculado na etapa de entrega.</p>
-          <button class="btn btn-gold cart-checkout-button" type="button" disabled>
-            Continuar para entrega — próxima etapa
-          </button>
+          <a href="{% url 'shop:checkout' %}" class="btn btn-gold cart-checkout-button">
+            Continuar para entrega
+          </a>
           <a href="{% url 'shop:product_list' %}" class="cart-continue-link">Continuar comprando</a>
         </aside>
       </div>

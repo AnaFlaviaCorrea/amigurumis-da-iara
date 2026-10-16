@@ -1,10 +1,11 @@
 from django.contrib import messages
+from django.db import transaction
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .cart import Cart
-from .forms import CartAddForm
-from .models import Category, Product
+from .forms import CartAddForm, CheckoutForm
+from .models import Category, Order, OrderItem, Product
 
 
 def product_list(request):
@@ -109,3 +110,67 @@ def cart_remove(request, product_id):
     Cart(request).remove(product)
     messages.success(request, f"{product.name} foi removido do carrinho.")
     return redirect("shop:cart_detail")
+
+
+def checkout(request):
+    cart = Cart(request)
+    cart_items = list(cart)
+    if not cart_items:
+        messages.error(request, "Seu carrinho está vazio.")
+        return redirect("shop:product_list")
+
+    unavailable_items = []
+    for item in cart_items:
+        product = item["product"]
+        if not product.available:
+            unavailable_items.append(product.name)
+        elif product.product_type == Product.ProductType.READY and item["quantity"] > product.stock:
+            unavailable_items.append(product.name)
+
+    if unavailable_items:
+        messages.error(
+            request,
+            "Revise a disponibilidade antes de continuar: " + ", ".join(unavailable_items),
+        )
+        return redirect("shop:cart_detail")
+
+    if request.method == "POST":
+        form = CheckoutForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                subtotal = cart.get_subtotal()
+                order = form.save(commit=False)
+                order.subtotal = subtotal
+                order.shipping_cost = 0
+                order.total = subtotal
+                order.save()
+
+                for item in cart_items:
+                    product = item["product"]
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        product_name=product.name,
+                        product_type=product.product_type,
+                        unit_price=item["price"],
+                        quantity=item["quantity"],
+                    )
+
+                request.session["last_order_id"] = str(order.public_id)
+                cart.clear()
+            return redirect("shop:order_success", public_id=order.public_id)
+    else:
+        form = CheckoutForm()
+
+    return render(
+        request,
+        "shop/checkout.html",
+        {"cart": cart, "cart_items": cart_items, "form": form},
+    )
+
+
+def order_success(request, public_id):
+    if request.session.get("last_order_id") != str(public_id):
+        return redirect("shop:product_list")
+    order = get_object_or_404(Order.objects.prefetch_related("items"), public_id=public_id)
+    return render(request, "shop/order_success.html", {"order": order})
