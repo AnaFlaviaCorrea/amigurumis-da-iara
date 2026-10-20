@@ -44,7 +44,13 @@ class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
     can_delete = False
-    readonly_fields = ("product", "product_name", "product_type", "unit_price", "quantity")
+    readonly_fields = (
+        "product",
+        "product_name",
+        "product_type",
+        "unit_price",
+        "quantity",
+    )
 
 
 class PaymentAttemptInline(admin.TabularInline):
@@ -53,9 +59,12 @@ class PaymentAttemptInline(admin.TabularInline):
     can_delete = False
     readonly_fields = (
         "public_id",
+        "provider_order_id",
         "provider_payment_id",
         "status",
         "status_detail",
+        "transaction_status",
+        "transaction_status_detail",
         "payment_method_id",
         "payment_type_id",
         "amount",
@@ -66,21 +75,49 @@ class PaymentAttemptInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("short_code", "full_name", "status", "delivery_method", "total", "created_at")
+    list_display = (
+        "short_code",
+        "full_name",
+        "status",
+        "delivery_method",
+        "total",
+        "created_at",
+    )
     list_filter = ("status", "delivery_method", "created_at")
     search_fields = ("public_id", "full_name", "email", "phone")
-    readonly_fields = ("public_id", "subtotal", "shipping_cost", "total", "created_at", "updated_at")
+    readonly_fields = (
+        "public_id",
+        "subtotal",
+        "shipping_cost",
+        "total",
+        "created_at",
+        "updated_at",
+    )
     inlines = (OrderItemInline, PaymentAttemptInline)
 
 
 @admin.register(PaymentAttempt)
 class PaymentAttemptAdmin(admin.ModelAdmin):
-    list_display = ("public_id", "order", "status", "payment_method_id", "amount", "created_at")
+    list_display = (
+        "public_id",
+        "order",
+        "status",
+        "payment_method_id",
+        "amount",
+        "created_at",
+    )
     list_filter = ("status", "payment_type_id", "created_at")
-    search_fields = ("public_id", "provider_payment_id", "order__public_id", "order__email")
+    search_fields = (
+        "public_id",
+        "provider_order_id",
+        "provider_payment_id",
+        "order__public_id",
+        "order__email",
+    )
     readonly_fields = (
         "public_id",
         "idempotency_key",
+        "provider_order_id",
         "provider_payment_id",
         "created_at",
         "updated_at",

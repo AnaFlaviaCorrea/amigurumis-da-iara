@@ -367,41 +367,72 @@ class PaymentTests(TestCase):
         attempt = PaymentAttempt.objects.get()
         self.assertEqual(attempt.amount, Decimal("150.00"))
 
-    @patch("shop.views.create_mercado_pago_payment")
-    def test_approved_payment_updates_order(self, create_payment):
-        attempt = PaymentAttempt.objects.create(order=self.order, amount=self.order.total)
-        create_payment.return_value = (
+    @patch("shop.views.create_mercado_pago_order")
+    def test_processed_order_updates_local_order(
+        self,
+        create_order,
+    ):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            amount=self.order.total,
+        )
+
+        create_order.return_value = (
             201,
             {
-                "id": 123456,
-                "status": "approved",
+                "id": "ORD123456",
+                "status": "processed",
                 "status_detail": "accredited",
-                "payment_method_id": "visa",
-                "payment_type_id": "credit_card",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY123456",
+                            "status": "processed",
+                            "status_detail": "accredited",
+                            "payment_method": {
+                                "id": "visa",
+                                "type": "credit_card",
+                            },
+                        }
+                    ]
+                },
             },
         )
 
         response = self.client.post(
-            reverse("shop:process_payment", args=[self.order.public_id]),
+            reverse(
+                "shop:process_payment",
+                args=[self.order.public_id],
+            ),
             data=json.dumps(
                 {
                     "attempt_id": str(attempt.public_id),
+                    # Este valor falso comprova que o servidor
+                    # utiliza o total salvo no pedido.
                     "transaction_amount": 1,
                     "payment_method_id": "visa",
+                    "payment_type_id": "credit_card",
                     "token": "test-token",
                     "installments": 1,
-                    "payer": {"email": "alterado@example.com"},
+                    "payer": {
+                        "email": "alterado@example.com",
+                    },
                 }
             ),
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
+
         self.order.refresh_from_db()
         attempt.refresh_from_db()
+
         self.assertEqual(self.order.status, Order.Status.PAID)
-        self.assertEqual(attempt.provider_payment_id, "123456")
-        passed_order = create_payment.call_args.args[0]
+        self.assertEqual(attempt.provider_order_id, "ORD123456")
+        self.assertEqual(attempt.provider_payment_id, "PAY123456")
+        self.assertEqual(attempt.transaction_status, "processed")
+
+        passed_order = create_order.call_args.args[0]
         self.assertEqual(passed_order.total, Decimal("150.00"))
 
     def test_shipping_order_is_not_charged_before_freight(self):

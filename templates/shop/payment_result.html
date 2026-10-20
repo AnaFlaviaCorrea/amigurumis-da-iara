@@ -5,13 +5,13 @@
 {% block content %}
 <main class="order-success-page">
   <section class="order-success-card">
-    {% if attempt.status == "approved" %}
+    {% if attempt.status == "processed" %}
       <span class="order-success-icon" aria-hidden="true">✓</span>
       <p class="product-category">Pagamento aprovado</p>
       <h1>Pedido confirmado!</h1>
       <p>Recebemos o pagamento do pedido {{ order.short_code }}.</p>
       <a href="{% url 'shop:order_success' order.public_id %}" class="btn btn-gold">Ver confirmação</a>
-    {% elif attempt.status == "pending" or attempt.status == "in_process" %}
+    {% elif attempt.status == "created" or attempt.status == "processing" or attempt.status == "action_required" %}
       <span class="order-success-icon is-pending" aria-hidden="true">…</span>
       <p class="product-category">Pagamento em processamento</p>
       <h1>Estamos aguardando a confirmação</h1>
