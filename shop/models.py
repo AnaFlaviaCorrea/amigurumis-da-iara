@@ -177,6 +177,7 @@ class Order(models.Model):
     customer_notes = models.TextField("observações", blank=True)
     subtotal = models.DecimalField("subtotal", max_digits=10, decimal_places=2)
     shipping_cost = models.DecimalField("frete", max_digits=10, decimal_places=2, default=0)
+    shipping_calculated = models.BooleanField("frete calculado", default=False)
     total = models.DecimalField("total", max_digits=10, decimal_places=2)
     status = models.CharField(
         "situação",
@@ -195,9 +196,18 @@ class Order(models.Model):
     def __str__(self):
         return f"Pedido {str(self.public_id)[:8].upper()} — {self.full_name}"
 
+    def save(self, *args, **kwargs):
+        if self.subtotal is not None:
+            self.total = self.subtotal + self.shipping_cost
+        super().save(*args, **kwargs)
+
     @property
     def short_code(self):
         return str(self.public_id)[:8].upper()
+
+    @property
+    def payment_ready(self):
+        return self.delivery_method == self.DeliveryMethod.PICKUP or self.shipping_calculated
 
 
 class OrderItem(models.Model):
@@ -231,3 +241,60 @@ class OrderItem(models.Model):
     @property
     def total_price(self):
         return self.unit_price * self.quantity
+
+
+class PaymentAttempt(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "Criada"
+        APPROVED = "approved", "Aprovada"
+        AUTHORIZED = "authorized", "Autorizada"
+        PENDING = "pending", "Pendente"
+        IN_PROCESS = "in_process", "Em análise"
+        IN_MEDIATION = "in_mediation", "Em mediação"
+        REJECTED = "rejected", "Recusada"
+        CANCELLED = "cancelled", "Cancelada"
+        REFUNDED = "refunded", "Estornada"
+        CHARGED_BACK = "charged_back", "Contestada"
+
+    public_id = models.UUIDField("código público", default=uuid.uuid4, unique=True, editable=False)
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="payment_attempts",
+        verbose_name="pedido",
+    )
+    idempotency_key = models.UUIDField(
+        "chave de idempotência",
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+    provider_payment_id = models.CharField(
+        "código no Mercado Pago",
+        max_length=80,
+        blank=True,
+        db_index=True,
+    )
+    status = models.CharField(
+        "situação",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+    )
+    status_detail = models.CharField("detalhe da situação", max_length=100, blank=True)
+    payment_method_id = models.CharField("meio de pagamento", max_length=50, blank=True)
+    payment_type_id = models.CharField("tipo de pagamento", max_length=50, blank=True)
+    amount = models.DecimalField("valor", max_digits=10, decimal_places=2)
+    qr_code = models.TextField("código Pix", blank=True)
+    qr_code_base64 = models.TextField("imagem do QR Code Pix", blank=True)
+    ticket_url = models.URLField("link do boleto", max_length=500, blank=True)
+    created_at = models.DateTimeField("criada em", auto_now_add=True)
+    updated_at = models.DateTimeField("atualizada em", auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "tentativa de pagamento"
+        verbose_name_plural = "tentativas de pagamento"
+
+    def __str__(self):
+        return f"Pagamento {str(self.public_id)[:8].upper()} — pedido {self.order.short_code}"

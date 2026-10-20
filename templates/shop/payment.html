@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pagamento | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="payment-page">
+  <div class="container payment-layout">
+    <section class="payment-card">
+      <p class="product-category">Pagamento seguro</p>
+      <h1>Finalize seu pedido</h1>
+      <p>Pedido <strong>{{ order.short_code }}</strong></p>
+
+      {% if not order.payment_ready %}
+        <div class="payment-notice">
+          <h2>Estamos calculando o frete</h2>
+          <p>O pagamento será liberado quando o valor da entrega estiver definido. Assim você não corre o risco de pagar um total incorreto.</p>
+        </div>
+      {% elif not payment_configured %}
+        <div class="payment-notice payment-notice-warning">
+          <h2>Mercado Pago em configuração</h2>
+          <p>As credenciais de teste ainda não foram adicionadas ao arquivo <code>.env</code>. Nenhuma cobrança pode ser realizada neste momento.</p>
+        </div>
+      {% else %}
+        <form hidden>{% csrf_token %}</form>
+        <div id="payment-message" class="payment-message" role="alert" hidden></div>
+        <div
+          id="paymentBrick_container"
+          data-public-key="{{ mercado_pago_public_key }}"
+          data-amount="{{ order.total }}"
+          data-attempt-id="{{ attempt.public_id }}"
+          data-process-url="{% url 'shop:process_payment' order.public_id %}"
+          data-payer-email="{{ order.email }}"
+        ></div>
+      {% endif %}
+    </section>
+
+    <aside class="payment-summary">
+      <h2>Resumo</h2>
+      {% for item in order.items.all %}
+        <div><span>{{ item.quantity }}× {{ item.product_name }}</span><strong>R$ {{ item.total_price|floatformat:2 }}</strong></div>
+      {% endfor %}
+      <div><span>Subtotal</span><strong>R$ {{ order.subtotal|floatformat:2 }}</strong></div>
+      <div><span>Frete</span><strong>{% if order.shipping_calculated %}R$ {{ order.shipping_cost|floatformat:2 }}{% else %}A calcular{% endif %}</strong></div>
+      <div class="payment-summary-total"><span>Total</span><strong>R$ {{ order.total|floatformat:2 }}</strong></div>
+    </aside>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+  {% if order.payment_ready and payment_configured %}
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <script src="{% static 'js/payment.js' %}"></script>
+  {% endif %}
+{% endblock %}

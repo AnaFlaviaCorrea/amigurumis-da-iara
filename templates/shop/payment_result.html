@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado do pagamento | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="order-success-page">
+  <section class="order-success-card">
+    {% if attempt.status == "approved" %}
+      <span class="order-success-icon" aria-hidden="true">✓</span>
+      <p class="product-category">Pagamento aprovado</p>
+      <h1>Pedido confirmado!</h1>
+      <p>Recebemos o pagamento do pedido {{ order.short_code }}.</p>
+      <a href="{% url 'shop:order_success' order.public_id %}" class="btn btn-gold">Ver confirmação</a>
+    {% elif attempt.status == "pending" or attempt.status == "in_process" %}
+      <span class="order-success-icon is-pending" aria-hidden="true">…</span>
+      <p class="product-category">Pagamento em processamento</p>
+      <h1>Estamos aguardando a confirmação</h1>
+      <p>Assim que o Mercado Pago confirmar, o pedido será atualizado automaticamente.</p>
+      {% if attempt.qr_code_base64 %}<img class="pix-qr-code" src="data:image/png;base64,{{ attempt.qr_code_base64 }}" alt="QR Code para pagamento por Pix">{% endif %}
+      {% if attempt.qr_code %}<label class="pix-copy"><span>Código Pix Copia e Cola</span><textarea readonly>{{ attempt.qr_code }}</textarea></label>{% endif %}
+      {% if attempt.ticket_url %}<a href="{{ attempt.ticket_url }}" class="btn btn-gold" target="_blank" rel="noopener noreferrer">Abrir boleto</a>{% endif %}
+    {% else %}
+      <span class="order-success-icon is-error" aria-hidden="true">!</span>
+      <p class="product-category">Pagamento não aprovado</p>
+      <h1>Vamos tentar novamente?</h1>
+      <p>O pedido continua salvo e nenhuma nova cobrança será feita sem sua confirmação.</p>
+      <a href="{% url 'shop:order_payment' order.public_id %}" class="btn btn-gold">Escolher outra forma de pagamento</a>
+    {% endif %}
+    <div class="order-code"><span>Código do pedido</span><strong>{{ order.short_code }}</strong></div>
+  </section>
+</main>
+{% endblock %}

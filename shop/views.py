@@ -1,11 +1,24 @@
+import json
+
+from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from .cart import Cart
 from .forms import CartAddForm, CheckoutForm
-from .models import Category, Order, OrderItem, Product
+from .models import Category, Order, OrderItem, PaymentAttempt, Product
+from .payments import (
+    apply_payment_response,
+    create_mercado_pago_payment,
+    get_mercado_pago_payment,
+    mercado_pago_configured,
+    validate_mercado_pago_webhook,
+)
 
 
 def product_list(request):
@@ -142,6 +155,9 @@ def checkout(request):
                 order = form.save(commit=False)
                 order.subtotal = subtotal
                 order.shipping_cost = 0
+                order.shipping_calculated = (
+                    order.delivery_method == Order.DeliveryMethod.PICKUP
+                )
                 order.total = subtotal
                 order.save()
 
@@ -158,7 +174,7 @@ def checkout(request):
 
                 request.session["last_order_id"] = str(order.public_id)
                 cart.clear()
-            return redirect("shop:order_success", public_id=order.public_id)
+            return redirect("shop:order_payment", public_id=order.public_id)
     else:
         form = CheckoutForm()
 
@@ -169,8 +185,132 @@ def checkout(request):
     )
 
 
-def order_success(request, public_id):
+def _session_order_or_redirect(request, public_id):
     if request.session.get("last_order_id") != str(public_id):
+        return None
+    return get_object_or_404(Order.objects.prefetch_related("items"), public_id=public_id)
+
+
+def order_payment(request, public_id):
+    order = _session_order_or_redirect(request, public_id)
+    if order is None:
         return redirect("shop:product_list")
-    order = get_object_or_404(Order.objects.prefetch_related("items"), public_id=public_id)
+    if order.status == Order.Status.PAID:
+        return redirect("shop:order_success", public_id=order.public_id)
+
+    attempt = None
+    configured = mercado_pago_configured()
+    if order.payment_ready and configured:
+        attempt_id = request.session.get("payment_attempt_id")
+        if attempt_id:
+            attempt = PaymentAttempt.objects.filter(
+                public_id=attempt_id,
+                order=order,
+                status=PaymentAttempt.Status.CREATED,
+            ).first()
+        if attempt is None:
+            attempt = PaymentAttempt.objects.create(order=order, amount=order.total)
+            request.session["payment_attempt_id"] = str(attempt.public_id)
+
+    return render(
+        request,
+        "shop/payment.html",
+        {
+            "order": order,
+            "attempt": attempt,
+            "payment_configured": configured,
+            "mercado_pago_public_key": settings.MERCADO_PAGO_PUBLIC_KEY,
+        },
+    )
+
+
+@require_POST
+def process_payment(request, public_id):
+    order = _session_order_or_redirect(request, public_id)
+    if order is None:
+        return JsonResponse({"error": "Pedido não encontrado nesta sessão."}, status=403)
+    if not order.payment_ready:
+        return JsonResponse({"error": "O frete ainda não foi calculado."}, status=409)
+    if not mercado_pago_configured():
+        return JsonResponse({"error": "O Mercado Pago ainda não foi configurado."}, status=503)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Dados de pagamento inválidos."}, status=400)
+
+    attempt = get_object_or_404(
+        PaymentAttempt,
+        public_id=payload.pop("attempt_id", None),
+        order=order,
+        status=PaymentAttempt.Status.CREATED,
+    )
+    try:
+        http_status, payment = create_mercado_pago_payment(order, attempt, payload)
+    except Exception:
+        return JsonResponse(
+            {"error": "Não foi possível comunicar com o Mercado Pago. Tente novamente."},
+            status=502,
+        )
+
+    if http_status not in (200, 201) or not payment.get("id"):
+        message = payment.get("message") or "O pagamento não pôde ser processado."
+        return JsonResponse({"error": message}, status=400)
+
+    apply_payment_response(attempt, payment)
+    request.session["last_payment_attempt_id"] = str(attempt.public_id)
+    request.session.pop("payment_attempt_id", None)
+    return JsonResponse(
+        {
+            "status": attempt.status,
+            "redirect_url": reverse(
+                "shop:payment_result",
+                kwargs={"public_id": order.public_id, "attempt_id": attempt.public_id},
+            ),
+        }
+    )
+
+
+def payment_result(request, public_id, attempt_id):
+    order = _session_order_or_redirect(request, public_id)
+    if order is None:
+        return redirect("shop:product_list")
+    if request.session.get("last_payment_attempt_id") != str(attempt_id):
+        return redirect("shop:order_payment", public_id=order.public_id)
+    attempt = get_object_or_404(PaymentAttempt, public_id=attempt_id, order=order)
+    return render(request, "shop/payment_result.html", {"order": order, "attempt": attempt})
+
+
+@csrf_exempt
+@require_POST
+def mercado_pago_webhook(request):
+    data_id = request.GET.get("data.id") or request.GET.get("id")
+    if not data_id:
+        try:
+            data_id = str((json.loads(request.body or "{}") .get("data") or {}).get("id") or "")
+        except json.JSONDecodeError:
+            data_id = ""
+
+    if not validate_mercado_pago_webhook(
+        request.headers.get("x-signature"),
+        request.headers.get("x-request-id"),
+        data_id,
+    ):
+        return HttpResponse(status=401)
+
+    attempt = PaymentAttempt.objects.filter(provider_payment_id=str(data_id)).first()
+    if attempt:
+        try:
+            http_status, payment = get_mercado_pago_payment(data_id)
+            if http_status == 200:
+                apply_payment_response(attempt, payment)
+        except Exception:
+            return HttpResponse(status=503)
+    return HttpResponse(status=200)
+
+
+def order_success(request, public_id):
+    order = _session_order_or_redirect(request, public_id)
+    if order is None:
+        return redirect("shop:product_list")
     return render(request, "shop/order_success.html", {"order": order})

@@ -8,7 +8,11 @@
     <span class="order-success-icon" aria-hidden="true">✓</span>
     <p class="product-category">Pedido recebido</p>
     <h1>Obrigada, {{ order.full_name }}!</h1>
-    <p>Seu pedido foi criado e está aguardando a definição do frete e do pagamento.</p>
+    {% if order.status == "paid" %}
+      <p>Seu pagamento foi aprovado e o pedido já está confirmado.</p>
+    {% else %}
+      <p>Seu pedido foi criado e está aguardando a confirmação do pagamento.</p>
+    {% endif %}
     <div class="order-code">
       <span>Código do pedido</span>
       <strong>{{ order.short_code }}</strong>
@@ -17,7 +21,7 @@
       <span>{{ order.get_delivery_method_display }}</span>
       <strong>Total parcial: R$ {{ order.total|floatformat:2 }}</strong>
     </div>
-    <p class="order-success-note">Guarde o código acima. Na próxima etapa do projeto, enviaremos também a confirmação automática.</p>
+    <p class="order-success-note">Guarde o código acima para acompanhar seu pedido.</p>
     <a href="{% url 'shop:product_list' %}" class="btn btn-gold">Voltar à loja</a>
   </section>
 </main>

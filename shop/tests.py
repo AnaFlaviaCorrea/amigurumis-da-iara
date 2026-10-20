@@ -1,6 +1,8 @@
+import json
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
@@ -8,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Category, Order, OrderItem, Product
+from .models import Category, Order, OrderItem, PaymentAttempt, Product
 
 
 class ProductModelTests(TestCase):
@@ -273,13 +275,11 @@ class CheckoutTests(TestCase):
         )
 
         order = Order.objects.get()
-        self.assertRedirects(
-            response,
-            reverse("shop:order_success", args=[order.public_id]),
-        )
+        self.assertRedirects(response, reverse("shop:order_payment", args=[order.public_id]))
         self.assertEqual(order.subtotal, Decimal("550.00"))
         self.assertEqual(order.total, Decimal("550.00"))
         self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertTrue(order.shipping_calculated)
         self.assertEqual(OrderItem.objects.get().quantity, 2)
         self.assertEqual(self.client.session.get("cart"), None)
 
@@ -321,6 +321,7 @@ class CheckoutTests(TestCase):
         order = Order.objects.get()
         self.assertEqual(order.state, "SC")
         self.assertEqual(order.city, "São José")
+        self.assertFalse(order.shipping_calculated)
 
     def test_success_page_is_limited_to_last_session_order(self):
         other_order = Order.objects.create(
@@ -337,3 +338,78 @@ class CheckoutTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("shop:product_list"))
+
+
+@override_settings(
+    MERCADO_PAGO_PUBLIC_KEY="TEST-public-key",
+    MERCADO_PAGO_ACCESS_TOKEN="TEST-access-token",
+)
+class PaymentTests(TestCase):
+    def setUp(self):
+        self.order = Order.objects.create(
+            full_name="Ana Cliente",
+            email="ana@example.com",
+            phone="48999999999",
+            delivery_method=Order.DeliveryMethod.PICKUP,
+            subtotal=Decimal("150.00"),
+            shipping_calculated=True,
+            total=Decimal("150.00"),
+        )
+        session = self.client.session
+        session["last_order_id"] = str(self.order.public_id)
+        session.save()
+
+    def test_payment_page_creates_attempt(self):
+        response = self.client.get(reverse("shop:order_payment", args=[self.order.public_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "paymentBrick_container")
+        attempt = PaymentAttempt.objects.get()
+        self.assertEqual(attempt.amount, Decimal("150.00"))
+
+    @patch("shop.views.create_mercado_pago_payment")
+    def test_approved_payment_updates_order(self, create_payment):
+        attempt = PaymentAttempt.objects.create(order=self.order, amount=self.order.total)
+        create_payment.return_value = (
+            201,
+            {
+                "id": 123456,
+                "status": "approved",
+                "status_detail": "accredited",
+                "payment_method_id": "visa",
+                "payment_type_id": "credit_card",
+            },
+        )
+
+        response = self.client.post(
+            reverse("shop:process_payment", args=[self.order.public_id]),
+            data=json.dumps(
+                {
+                    "attempt_id": str(attempt.public_id),
+                    "transaction_amount": 1,
+                    "payment_method_id": "visa",
+                    "token": "test-token",
+                    "installments": 1,
+                    "payer": {"email": "alterado@example.com"},
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PAID)
+        self.assertEqual(attempt.provider_payment_id, "123456")
+        passed_order = create_payment.call_args.args[0]
+        self.assertEqual(passed_order.total, Decimal("150.00"))
+
+    def test_shipping_order_is_not_charged_before_freight(self):
+        self.order.delivery_method = Order.DeliveryMethod.SHIPPING
+        self.order.shipping_calculated = False
+        self.order.save()
+
+        response = self.client.get(reverse("shop:order_payment", args=[self.order.public_id]))
+
+        self.assertContains(response, "Estamos calculando o frete")
+        self.assertEqual(PaymentAttempt.objects.count(), 0)

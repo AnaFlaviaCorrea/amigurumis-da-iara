@@ -54,12 +54,34 @@ as informações no Admin antes de ativá-los. Imagens já importadas são ignor
 arquivos novos são cadastrados; imagens substituídas são atualizadas; e uma
 imagem apenas renomeada não gera produto duplicado.
 
-## Finalização do pedido
+## Finalização e pagamento do pedido
 
-O cliente pode avançar do carrinho para a tela de checkout sem criar uma conta.
-Nela, informa os dados de contato e escolhe entre receber no endereço ou retirar
-com a Iara. O sistema cria o pedido e seus itens como “aguardando pagamento”.
-O cálculo do frete e a cobrança serão integrados nas próximas etapas.
+O cliente pode avançar do carrinho para o checkout sem criar uma conta. Depois
+de informar os dados de contato e escolher entrega ou retirada, o sistema cria
+o pedido e abre o Payment Brick do Mercado Pago dentro da loja.
+
+Pedidos para retirada podem ser pagos imediatamente. Pedidos com entrega ficam
+bloqueados até o frete ser calculado, evitando cobrar um total incorreto.
+
+### Configurar o Mercado Pago em modo de teste
+
+1. Crie uma aplicação no painel **Suas integrações** do Mercado Pago.
+2. Copie `.env.example` para um novo arquivo chamado `.env`.
+3. Preencha no `.env` a Public Key e o Access Token de **teste**.
+4. Nunca envie o `.env` para o GitHub; ele já está listado no `.gitignore`.
+5. Instale as dependências e aplique as migrações:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+O fluxo aceita cartão, Pix e boleto conforme a disponibilidade da conta. Cada
+tentativa usa uma chave de idempotência própria para evitar cobrança duplicada.
+O Webhook deverá apontar para `/loja/webhooks/mercado-pago/` quando o site tiver
+um endereço HTTPS público. Em ambiente local, essa URL não é acessível pelo
+Mercado Pago.
 
 Landing Page desenvolvida em Django para divulgação de cursos presenciais de Pet Realista em Crochê.
 

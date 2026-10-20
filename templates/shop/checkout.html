@@ -67,8 +67,8 @@
           <span>Subtotal</span>
           <strong>R$ {{ cart.get_subtotal|floatformat:2 }}</strong>
         </div>
-        <p>O pedido será criado como “aguardando pagamento”. Nenhuma cobrança será feita nesta etapa.</p>
-        <button type="submit" class="btn btn-gold">Criar pedido</button>
+        <p>Após criar o pedido, você seguirá para o pagamento seguro do Mercado Pago.</p>
+        <button type="submit" class="btn btn-gold">Continuar para o pagamento</button>
         <a href="{% url 'shop:cart_detail' %}">Voltar ao carrinho</a>
       </aside>
     </form>
