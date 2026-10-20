@@ -97,10 +97,15 @@ class Product(models.Model):
             errors["price"] = "Informe o preço antes de ativar o produto."
         elif self.price is not None and self.price <= 0:
             errors["price"] = "O preço deve ser maior que zero."
-        if self.product_type == self.ProductType.MADE_TO_ORDER and not self.production_days:
+        if (
+            self.product_type == self.ProductType.MADE_TO_ORDER
+            and not self.production_days
+        ):
             errors["production_days"] = "Informe o prazo para produzir a encomenda."
         if self.product_type == self.ProductType.READY and self.production_days:
-            errors["production_days"] = "Produtos à pronta entrega não precisam de prazo de produção."
+            errors["production_days"] = (
+                "Produtos à pronta entrega não precisam de prazo de produção."
+            )
         if errors:
             raise ValidationError(errors)
 
@@ -157,7 +162,9 @@ class Order(models.Model):
         SHIPPING = "shipping", "Receber no endereço"
         PICKUP = "pickup", "Retirar com a Iara"
 
-    public_id = models.UUIDField("código público", default=uuid.uuid4, unique=True, editable=False)
+    public_id = models.UUIDField(
+        "código público", default=uuid.uuid4, unique=True, editable=False
+    )
     full_name = models.CharField("nome completo", max_length=150)
     email = models.EmailField("e-mail")
     phone = models.CharField("telefone", max_length=20)
@@ -176,7 +183,9 @@ class Order(models.Model):
     state = models.CharField("estado", max_length=2, blank=True)
     customer_notes = models.TextField("observações", blank=True)
     subtotal = models.DecimalField("subtotal", max_digits=10, decimal_places=2)
-    shipping_cost = models.DecimalField("frete", max_digits=10, decimal_places=2, default=0)
+    shipping_cost = models.DecimalField(
+        "frete", max_digits=10, decimal_places=2, default=0
+    )
     shipping_calculated = models.BooleanField("frete calculado", default=False)
     total = models.DecimalField("total", max_digits=10, decimal_places=2)
     status = models.CharField(
@@ -207,7 +216,10 @@ class Order(models.Model):
 
     @property
     def payment_ready(self):
-        return self.delivery_method == self.DeliveryMethod.PICKUP or self.shipping_calculated
+        return (
+            self.delivery_method == self.DeliveryMethod.PICKUP
+            or self.shipping_calculated
+        )
 
 
 class OrderItem(models.Model):
@@ -226,7 +238,9 @@ class OrderItem(models.Model):
         verbose_name="produto",
     )
     product_name = models.CharField("nome do produto", max_length=140)
-    product_type = models.CharField("modalidade", max_length=20, choices=Product.ProductType.choices)
+    product_type = models.CharField(
+        "modalidade", max_length=20, choices=Product.ProductType.choices
+    )
     unit_price = models.DecimalField("preço unitário", max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField("quantidade")
     personalization_notes = models.TextField("detalhes da personalização", blank=True)
@@ -246,17 +260,17 @@ class OrderItem(models.Model):
 class PaymentAttempt(models.Model):
     class Status(models.TextChoices):
         CREATED = "created", "Criada"
-        APPROVED = "approved", "Aprovada"
-        AUTHORIZED = "authorized", "Autorizada"
-        PENDING = "pending", "Pendente"
-        IN_PROCESS = "in_process", "Em análise"
-        IN_MEDIATION = "in_mediation", "Em mediação"
-        REJECTED = "rejected", "Recusada"
-        CANCELLED = "cancelled", "Cancelada"
+        PROCESSING = "processing", "Em processamento"
+        PROCESSED = "processed", "Processada"
+        ACTION_REQUIRED = "action_required", "Ação necessária"
+        FAILED = "failed", "Falhou"
+        CANCELED = "canceled", "Cancelada"
         REFUNDED = "refunded", "Estornada"
         CHARGED_BACK = "charged_back", "Contestada"
 
-    public_id = models.UUIDField("código público", default=uuid.uuid4, unique=True, editable=False)
+    public_id = models.UUIDField(
+        "código público", default=uuid.uuid4, unique=True, editable=False
+    )
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -268,6 +282,12 @@ class PaymentAttempt(models.Model):
         default=uuid.uuid4,
         unique=True,
         editable=False,
+    )
+    provider_order_id = models.CharField(
+        "código da order no Mercado Pago",
+        max_length=80,
+        blank=True,
+        db_index=True,
     )
     provider_payment_id = models.CharField(
         "código no Mercado Pago",
@@ -282,6 +302,17 @@ class PaymentAttempt(models.Model):
         default=Status.CREATED,
     )
     status_detail = models.CharField("detalhe da situação", max_length=100, blank=True)
+    transaction_status = models.CharField(
+        "situação da transação",
+        max_length=30,
+        blank=True,
+    )
+
+    transaction_status_detail = models.CharField(
+        "detalhe da transação",
+        max_length=100,
+        blank=True,
+    )
     payment_method_id = models.CharField("meio de pagamento", max_length=50, blank=True)
     payment_type_id = models.CharField("tipo de pagamento", max_length=50, blank=True)
     amount = models.DecimalField("valor", max_digits=10, decimal_places=2)
