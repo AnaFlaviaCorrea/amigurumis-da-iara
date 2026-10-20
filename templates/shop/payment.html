@@ -25,7 +25,7 @@
         <form hidden>{% csrf_token %}</form>
         <div id="payment-message" class="payment-message" role="alert" hidden></div>
         <div
-          id="paymentBrick_container"
+          id="cardPaymentBrick_container"
           data-public-key="{{ mercado_pago_public_key }}"
           data-amount="{{ order.total }}"
           data-attempt-id="{{ attempt.public_id }}"

@@ -363,7 +363,7 @@ class PaymentTests(TestCase):
         response = self.client.get(reverse("shop:order_payment", args=[self.order.public_id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "paymentBrick_container")
+        self.assertContains(response, "cardPaymentBrick_container")
         attempt = PaymentAttempt.objects.get()
         self.assertEqual(attempt.amount, Decimal("150.00"))
 

@@ -1,62 +1,155 @@
 (() => {
-    const container = document.getElementById("paymentBrick_container");
-    if (!container || typeof MercadoPago === "undefined") return;
+    const container = document.getElementById(
+        "cardPaymentBrick_container"
+    );
 
-    const message = document.getElementById("payment-message");
-    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value
-        || document.cookie.split("; ").find(row => row.startsWith("csrftoken="))?.split("=")[1];
+    if (
+        !container
+        || typeof MercadoPago === "undefined"
+    ) {
+        return;
+    }
+
+    const message = document.getElementById(
+        "payment-message"
+    );
+
+    const csrfToken = (
+        document.querySelector(
+            "[name=csrfmiddlewaretoken]"
+        )?.value
+        || document.cookie
+            .split("; ")
+            .find(row => row.startsWith("csrftoken="))
+            ?.split("=")[1]
+    );
 
     const showError = (text) => {
         message.textContent = text;
         message.hidden = false;
     };
 
-    const mercadoPago = new MercadoPago(container.dataset.publicKey, {locale: "pt-BR"});
+    const mercadoPago = new MercadoPago(
+        container.dataset.publicKey,
+        {
+            locale: "pt-BR",
+        }
+    );
+
     const bricksBuilder = mercadoPago.bricks();
 
-    const renderPaymentBrick = async () => {
+    const renderCardPaymentBrick = async () => {
         const settings = {
             initialization: {
-                amount: Number(container.dataset.amount.replace(",", ".")),
-                payer: {email: container.dataset.payerEmail},
-            },
-            customization: {
-                paymentMethods: {
-                    bankTransfer: "all",
-                    creditCard: "all",
-                    debitCard: "all",
-                    ticket: "all",
+                amount: Number(
+                    container.dataset.amount.replace(",", ".")
+                ),
+                payer: {
+                    email: container.dataset.payerEmail,
                 },
-                visual: {style: {theme: "default"}},
             },
+
             callbacks: {
-                onReady: () => {},
-                onSubmit: ({formData}) => new Promise((resolve, reject) => {
+                onReady: () => {
                     message.hidden = true;
-                    fetch(container.dataset.processUrl, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRFToken": csrfToken,
-                        },
-                        body: JSON.stringify({...formData, attempt_id: container.dataset.attemptId}),
-                    })
-                        .then(async response => {
-                            const data = await response.json();
-                            if (!response.ok) throw new Error(data.error || "Não foi possível processar o pagamento.");
-                            window.location.assign(data.redirect_url);
-                            resolve();
-                        })
-                        .catch(error => {
+                },
+
+                onSubmit: (
+                    formData,
+                    additionalData
+                ) => new Promise(
+                    (resolve, reject) => {
+                        message.hidden = true;
+
+                        const paymentTypeId = (
+                            additionalData?.paymentTypeId
+                        );
+
+                        if (!paymentTypeId) {
+                            const error = new Error(
+                                "Não foi possível identificar "
+                                + "o tipo do cartão."
+                            );
+
                             showError(error.message);
                             reject(error);
-                        });
-                }),
-                onError: () => showError("O formulário de pagamento encontrou um erro. Atualize a página e tente novamente."),
+                            return;
+                        }
+
+                        fetch(
+                            container.dataset.processUrl,
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+                                    "X-CSRFToken": csrfToken,
+                                },
+
+                                body: JSON.stringify({
+                                    ...formData,
+
+                                    payment_type_id:
+                                        paymentTypeId,
+
+                                    attempt_id:
+                                        container.dataset
+                                            .attemptId,
+                                }),
+                            }
+                        )
+                            .then(async response => {
+                                const data =
+                                    await response.json();
+
+                                if (!response.ok) {
+                                    throw new Error(
+                                        data.error
+                                        || "Não foi possível "
+                                        + "processar o pagamento."
+                                    );
+                                }
+
+                                window.location.assign(
+                                    data.redirect_url
+                                );
+
+                                resolve();
+                            })
+                            .catch(error => {
+                                showError(error.message);
+                                reject(error);
+                            });
+                    }
+                ),
+
+                onError: () => {
+                    showError(
+                        "O formulário de cartão encontrou "
+                        + "um erro. Atualize a página "
+                        + "e tente novamente."
+                    );
+                },
             },
         };
-        window.paymentBrickController = await bricksBuilder.create("payment", "paymentBrick_container", settings);
+
+        window.cardPaymentBrickController =
+            await bricksBuilder.create(
+                "cardPayment",
+                "cardPaymentBrick_container",
+                settings
+            );
     };
 
-    renderPaymentBrick().catch(() => showError("Não foi possível carregar as formas de pagamento."));
+    renderCardPaymentBrick().catch(() => {
+        showError(
+            "Não foi possível carregar "
+            + "o formulário de cartão."
+        );
+    });
+
+    window.addEventListener("pagehide", () => {
+        window.cardPaymentBrickController?.unmount();
+    });
 })();
