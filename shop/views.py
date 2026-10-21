@@ -1,5 +1,6 @@
 import json
 import logging
+
 logger = logging.getLogger(__name__)
 
 from django.conf import settings
@@ -290,14 +291,18 @@ def process_payment(request, public_id):
             status=502,
         )
 
-    if (
-        http_status not in (200, 201)
-        or not mercado_pago_order.get("id")
-    ):
-        message = mercado_pago_error_message(
-            mercado_pago_order
+    if http_status in (200, 201):
+        order_response = mercado_pago_order
+    elif http_status == 402:
+        order_response = mercado_pago_order.get("data") or {}
+    else:
+        message = mercado_pago_error_message(mercado_pago_order)
+        return JsonResponse(
+            {"error": message},
+            status=400,
         )
-
+    if not order_response.get("id"):
+        message = mercado_pago_error_message(mercado_pago_order)
         return JsonResponse(
             {"error": message},
             status=400,
@@ -305,7 +310,7 @@ def process_payment(request, public_id):
 
     apply_order_response(
         attempt,
-        mercado_pago_order,
+        order_response,
     )
 
     request.session["last_payment_attempt_id"] = str(attempt.public_id)

@@ -26,7 +26,9 @@ class ProductModelTests(TestCase):
             "price": Decimal("350.00"),
             "product_type": Product.ProductType.READY,
             "stock": 1,
-            "main_image": SimpleUploadedFile("pet.jpg", b"imagem", content_type="image/jpeg"),
+            "main_image": SimpleUploadedFile(
+                "pet.jpg", b"imagem", content_type="image/jpeg"
+            ),
         }
         data.update(overrides)
         return Product(**data)
@@ -70,7 +72,9 @@ class ShopViewTests(TestCase):
             price=Decimal("320.00"),
             product_type=Product.ProductType.READY,
             stock=1,
-            main_image=SimpleUploadedFile("pet.jpg", b"imagem", content_type="image/jpeg"),
+            main_image=SimpleUploadedFile(
+                "pet.jpg", b"imagem", content_type="image/jpeg"
+            ),
         )
         self.order = Product.objects.create(
             category=dolls,
@@ -81,7 +85,9 @@ class ShopViewTests(TestCase):
             product_type=Product.ProductType.MADE_TO_ORDER,
             production_days=20,
             customizable=True,
-            main_image=SimpleUploadedFile("boneca.jpg", b"imagem", content_type="image/jpeg"),
+            main_image=SimpleUploadedFile(
+                "boneca.jpg", b"imagem", content_type="image/jpeg"
+            ),
         )
 
     def test_catalog_displays_active_products(self):
@@ -118,7 +124,9 @@ class CartViewTests(TestCase):
             price=Decimal("150.00"),
             product_type=Product.ProductType.READY,
             stock=2,
-            main_image=SimpleUploadedFile("pet-cart.jpg", b"imagem", content_type="image/jpeg"),
+            main_image=SimpleUploadedFile(
+                "pet-cart.jpg", b"imagem", content_type="image/jpeg"
+            ),
         )
 
     def test_add_product_to_cart(self):
@@ -129,7 +137,9 @@ class CartViewTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("shop:cart_detail"))
-        self.assertEqual(self.client.session["cart"][str(self.product.id)]["quantity"], 1)
+        self.assertEqual(
+            self.client.session["cart"][str(self.product.id)]["quantity"], 1
+        )
         self.assertContains(response, "R$ 150,00")
 
     def test_update_cart_quantity(self):
@@ -142,7 +152,9 @@ class CartViewTests(TestCase):
             {"quantity": 2, "replace": "on"},
         )
 
-        self.assertEqual(self.client.session["cart"][str(self.product.id)]["quantity"], 2)
+        self.assertEqual(
+            self.client.session["cart"][str(self.product.id)]["quantity"], 2
+        )
 
     def test_cart_does_not_exceed_ready_stock(self):
         response = self.client.post(
@@ -159,7 +171,9 @@ class CartViewTests(TestCase):
         self.client.post(add_url, {"quantity": 2})
         response = self.client.post(add_url, {"quantity": 1}, follow=True)
 
-        self.assertEqual(self.client.session["cart"][str(self.product.id)]["quantity"], 2)
+        self.assertEqual(
+            self.client.session["cart"][str(self.product.id)]["quantity"], 2
+        )
         self.assertContains(response, "Temos apenas 2 unidade(s) disponível(is).")
 
     def test_remove_product_from_cart(self):
@@ -247,7 +261,9 @@ class CheckoutTests(TestCase):
             product_type=Product.ProductType.MADE_TO_ORDER,
             production_days=20,
             customizable=True,
-            main_image=SimpleUploadedFile("boneca-checkout.jpg", b"imagem", content_type="image/jpeg"),
+            main_image=SimpleUploadedFile(
+                "boneca-checkout.jpg", b"imagem", content_type="image/jpeg"
+            ),
         )
 
     def add_product(self, quantity=1):
@@ -275,7 +291,9 @@ class CheckoutTests(TestCase):
         )
 
         order = Order.objects.get()
-        self.assertRedirects(response, reverse("shop:order_payment", args=[order.public_id]))
+        self.assertRedirects(
+            response, reverse("shop:order_payment", args=[order.public_id])
+        )
         self.assertEqual(order.subtotal, Decimal("550.00"))
         self.assertEqual(order.total, Decimal("550.00"))
         self.assertEqual(order.status, Order.Status.PENDING)
@@ -360,7 +378,9 @@ class PaymentTests(TestCase):
         session.save()
 
     def test_payment_page_creates_attempt(self):
-        response = self.client.get(reverse("shop:order_payment", args=[self.order.public_id]))
+        response = self.client.get(
+            reverse("shop:order_payment", args=[self.order.public_id])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "cardPaymentBrick_container")
@@ -435,12 +455,174 @@ class PaymentTests(TestCase):
         passed_order = create_order.call_args.args[0]
         self.assertEqual(passed_order.total, Decimal("150.00"))
 
+    @patch("shop.views.create_mercado_pago_order")
+    def test_failed_order_is_saved_without_marking_order_as_paid(
+        self,
+        create_order,
+    ):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            amount=self.order.total,
+        )
+
+        create_order.return_value = (
+            402,
+            {
+                "errors": [
+                    {
+                        "code": "failed",
+                        "message": "The following transactions failed",
+                    }
+                ],
+                "data": {
+                    "id": "ORD-FAILED-123",
+                    "status": "failed",
+                    "status_detail": "failed",
+                    "transactions": {
+                        "payments": [
+                            {
+                                "id": "PAY-FAILED-123",
+                                "status": "failed",
+                                "status_detail": "rejected_by_issuer",
+                                "payment_method": {
+                                    "id": "master",
+                                    "type": "credit_card",
+                                },
+                            }
+                        ]
+                    },
+                },
+            },
+        )
+
+        response = self.client.post(
+            reverse(
+                "shop:process_payment",
+                args=[self.order.public_id],
+            ),
+            data=json.dumps(
+                {
+                    "attempt_id": str(attempt.public_id),
+                    "payment_method_id": "master",
+                    "payment_type_id": "credit_card",
+                    "token": "test-token",
+                    "installments": 1,
+                    "payer": {
+                        "identification": {
+                            "type": "CPF",
+                            "number": "12345678909",
+                        }
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.PENDING,
+        )
+        self.assertEqual(attempt.status, "failed")
+        self.assertEqual(
+            attempt.transaction_status,
+            "failed",
+        )
+        self.assertEqual(
+            attempt.transaction_status_detail,
+            "rejected_by_issuer",
+        )
+        self.assertEqual(
+            attempt.provider_order_id,
+            "ORD-FAILED-123",
+        )
+
+    @patch("shop.views.create_mercado_pago_order")
+    def test_processing_order_does_not_mark_order_as_paid(
+        self,
+        create_order,
+    ):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            amount=self.order.total,
+        )
+
+        create_order.return_value = (
+            201,
+            {
+                "id": "ORD-PROCESSING-123",
+                "status": "processing",
+                "status_detail": "in_process",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY-PROCESSING-123",
+                            "status": "processing",
+                            "status_detail": "in_process",
+                            "payment_method": {
+                                "id": "master",
+                                "type": "credit_card",
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        response = self.client.post(
+            reverse(
+                "shop:process_payment",
+                args=[self.order.public_id],
+            ),
+            data=json.dumps(
+                {
+                    "attempt_id": str(attempt.public_id),
+                    "payment_method_id": "master",
+                    "payment_type_id": "credit_card",
+                    "token": "test-token",
+                    "installments": 1,
+                    "payer": {
+                        "identification": {
+                            "type": "CPF",
+                            "number": "12345678909",
+                        }
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.PENDING,
+        )
+        self.assertEqual(attempt.status, "processing")
+        self.assertEqual(
+            attempt.transaction_status,
+            "processing",
+        )
+        self.assertEqual(
+            attempt.provider_order_id,
+            "ORD-PROCESSING-123",
+        )
+
     def test_shipping_order_is_not_charged_before_freight(self):
         self.order.delivery_method = Order.DeliveryMethod.SHIPPING
         self.order.shipping_calculated = False
         self.order.save()
 
-        response = self.client.get(reverse("shop:order_payment", args=[self.order.public_id]))
+        response = self.client.get(
+            reverse("shop:order_payment", args=[self.order.public_id])
+        )
 
         self.assertContains(response, "Estamos calculando o frete")
         self.assertEqual(PaymentAttempt.objects.count(), 0)
