@@ -1,4 +1,6 @@
 import json
+import logging
+logger = logging.getLogger(__name__)
 
 from django.conf import settings
 from django.contrib import messages
@@ -273,9 +275,17 @@ def process_payment(request, public_id):
             payload,
         )
     except Exception:
+        logger.exception(
+            "Erro ao criar order no Mercado Pago para o pedido %s",
+            order.public_id,
+        )
+
         return JsonResponse(
             {
-                "error": "Não foi possível comunicar com o Mercado Pago. Tente novamente."
+                "error": (
+                    "Não foi possível comunicar com o Mercado Pago. "
+                    "Consulte o terminal."
+                )
             },
             status=502,
         )
@@ -297,7 +307,7 @@ def process_payment(request, public_id):
         attempt,
         mercado_pago_order,
     )
-   
+
     request.session["last_payment_attempt_id"] = str(attempt.public_id)
     request.session.pop("payment_attempt_id", None)
     return JsonResponse(
