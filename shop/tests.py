@@ -615,6 +615,150 @@ class PaymentTests(TestCase):
             "ORD-PROCESSING-123",
         )
 
+    @patch(
+        "shop.views.validate_mercado_pago_webhook",
+        return_value=False,
+    )
+    def test_webhook_rejects_invalid_signature(
+        self,
+        validate_webhook,
+    ):
+        url = reverse("shop:mercado_pago_webhook")
+        url += "?data.id=ORD-WEBHOOK-INVALID"
+
+        response = self.client.post(
+            url,
+            data=json.dumps(
+                {
+                    "type": "order",
+                    "data": {
+                        "id": "ORD-WEBHOOK-INVALID",
+                    },
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_SIGNATURE="invalid-signature",
+            HTTP_X_REQUEST_ID="request-123",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        validate_webhook.assert_called_once()
+
+    @patch("shop.views.get_mercado_pago_order")
+    @patch(
+        "shop.views.validate_mercado_pago_webhook",
+        return_value=True,
+    )
+    def test_webhook_ignores_unknown_order(
+        self,
+        validate_webhook,
+        get_order,
+    ):
+        url = reverse("shop:mercado_pago_webhook")
+        url += "?data.id=ORD-UNKNOWN"
+
+        response = self.client.post(
+            url,
+            data=json.dumps(
+                {
+                    "type": "order",
+                    "data": {
+                        "id": "ORD-UNKNOWN",
+                    },
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_SIGNATURE="valid-signature",
+            HTTP_X_REQUEST_ID="request-456",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        validate_webhook.assert_called_once()
+        get_order.assert_not_called()
+
+    @patch("shop.views.get_mercado_pago_order")
+    @patch(
+        "shop.views.validate_mercado_pago_webhook",
+        return_value=True,
+    )
+    def test_webhook_updates_processing_order_to_paid(
+        self,
+        validate_webhook,
+        get_order,
+    ):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            amount=self.order.total,
+            provider_order_id="ORD-WEBHOOK-123",
+            provider_payment_id="PAY-WEBHOOK-123",
+            status="processing",
+            transaction_status="processing",
+            transaction_status_detail="in_process",
+        )
+
+        get_order.return_value = (
+            200,
+            {
+                "id": "ORD-WEBHOOK-123",
+                "status": "processed",
+                "status_detail": "accredited",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY-WEBHOOK-123",
+                            "status": "processed",
+                            "status_detail": "accredited",
+                            "payment_method": {
+                                "id": "master",
+                                "type": "credit_card",
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        url = reverse("shop:mercado_pago_webhook")
+        url += "?data.id=ORD-WEBHOOK-123&type=order"
+
+        response = self.client.post(
+            url,
+            data=json.dumps(
+                {
+                    "action": "order.processed",
+                    "type": "order",
+                    "data": {
+                        "id": "ORD-WEBHOOK-123",
+                    },
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_SIGNATURE="valid-signature",
+            HTTP_X_REQUEST_ID="request-789",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.PAID,
+        )
+        self.assertEqual(attempt.status, "processed")
+        self.assertEqual(
+            attempt.transaction_status,
+            "processed",
+        )
+        self.assertEqual(
+            attempt.status_detail,
+            "accredited",
+        )
+
+        validate_webhook.assert_called_once()
+        get_order.assert_called_once_with("ORD-WEBHOOK-123")
+
     def test_shipping_order_is_not_charged_before_freight(self):
         self.order.delivery_method = Order.DeliveryMethod.SHIPPING
         self.order.shipping_calculated = False

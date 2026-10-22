@@ -342,28 +342,57 @@ def payment_result(request, public_id, attempt_id):
 @require_POST
 def mercado_pago_webhook(request):
     data_id = request.GET.get("data.id") or request.GET.get("id")
+
     if not data_id:
         try:
-            data_id = str(
-                (json.loads(request.body or "{}").get("data") or {}).get("id") or ""
-            )
+            body = json.loads(request.body or "{}")
         except json.JSONDecodeError:
-            data_id = ""
+            body = {}
 
-    if not validate_mercado_pago_webhook(
+        data_id = str((body.get("data") or {}).get("id") or "")
+
+    if not data_id:
+        return HttpResponse(status=400)
+
+    signature_is_valid = validate_mercado_pago_webhook(
         request.headers.get("x-signature"),
         request.headers.get("x-request-id"),
         data_id,
-    ):
+    )
+
+    if not signature_is_valid:
         return HttpResponse(status=401)
 
     attempt = PaymentAttempt.objects.filter(provider_order_id=str(data_id)).first()
+
+    # A notificação pode pertencer a uma order que não está
+    # registrada neste banco. Confirmamos o recebimento para
+    # evitar que o Mercado Pago continue reenviando.
+    if attempt is None:
+        return HttpResponse(status=200)
+
     try:
         http_status, mercado_pago_order = get_mercado_pago_order(data_id)
-        if http_status == 200:
-            apply_order_response(attempt, mercado_pago_order)
     except Exception:
+        logger.exception(
+            "Erro ao consultar a order %s no webhook",
+            data_id,
+        )
         return HttpResponse(status=503)
+
+    if http_status != 200:
+        logger.warning(
+            "Mercado Pago devolveu status %s ao consultar " "a order %s no webhook",
+            http_status,
+            data_id,
+        )
+        return HttpResponse(status=503)
+
+    apply_order_response(
+        attempt,
+        mercado_pago_order,
+    )
+
     return HttpResponse(status=200)
 
 
