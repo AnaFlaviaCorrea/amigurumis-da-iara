@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Carrinho | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="cart-page">
+  <div class="container">
+    <header class="cart-header">
+      <span class="section-tag">Sua seleção</span>
+      <h1>Meu carrinho</h1>
+      <p>Confira as peças escolhidas antes de continuar.</p>
+    </header>
+
+    {% if cart|length %}
+      <div class="cart-layout">
+        <section class="cart-items" aria-label="Produtos do carrinho">
+          {% for item in cart %}
+            <article class="cart-item">
+              <a href="{{ item.product.get_absolute_url }}" class="cart-item-image">
+                <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}">
+              </a>
+
+              <div class="cart-item-info">
+                <p class="product-category">{{ item.product.category.name }}</p>
+                <h2><a href="{{ item.product.get_absolute_url }}">{{ item.product.name }}</a></h2>
+                <span>{{ item.product.get_product_type_display }}</span>
+
+                {% if item.product.product_type == 'made_to_order' %}
+                  <small>Produção em até {{ item.product.production_days }} dias</small>
+                {% endif %}
+              </div>
+
+              <form class="cart-quantity" action="{% url 'shop:cart_update' item.product.id %}" method="post">
+                {% csrf_token %}
+                <label for="quantity-{{ item.product.id }}">Quantidade</label>
+                <div>
+                  <input
+                    id="quantity-{{ item.product.id }}"
+                    class="quantity-input"
+                    type="number"
+                    name="quantity"
+                    value="{{ item.quantity }}"
+                    min="1"
+                    max="{% if item.product.product_type == 'ready' %}{{ item.product.stock }}{% else %}10{% endif %}"
+                  >
+                  <input type="hidden" name="replace" value="on">
+                  <button type="submit" class="cart-text-button">Atualizar</button>
+                </div>
+              </form>
+
+              <div class="cart-item-price">
+                <strong>R$ {{ item.total_price|floatformat:2 }}</strong>
+                <span>R$ {{ item.price|floatformat:2 }} cada</span>
+                <form action="{% url 'shop:cart_remove' item.product.id %}" method="post">
+                  {% csrf_token %}
+                  <button type="submit" class="cart-remove-button">Remover</button>
+                </form>
+              </div>
+            </article>
+          {% endfor %}
+        </section>
+
+        <aside class="cart-summary">
+          <h2>Resumo</h2>
+          <div class="cart-summary-line">
+            <span>Subtotal</span>
+            <strong>R$ {{ cart.get_subtotal|floatformat:2 }}</strong>
+          </div>
+          <p>O valor do frete será calculado na etapa de entrega.</p>
+          <a href="{% url 'shop:checkout' %}" class="btn btn-gold cart-checkout-button">
+            Continuar para entrega
+          </a>
+          <a href="{% url 'shop:product_list' %}" class="cart-continue-link">Continuar comprando</a>
+        </aside>
+      </div>
+    {% else %}
+      <section class="cart-empty">
+        <h2>Seu carrinho está vazio</h2>
+        <p>Conheça as peças disponíveis e encontre uma criação especial.</p>
+        <a href="{% url 'shop:product_list' %}" class="btn btn-gold">Conhecer a loja</a>
+      </section>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

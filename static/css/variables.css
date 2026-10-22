@@ -6,6 +6,7 @@
     --secondary:#B98C4A;
     --background:#F8F5F0;
     --background-light:#FFFFFF;
+    --background-section:#EFE8DD;
     --section:#EFE8DD;
     --gold-light:#F4E8D5;
 
@@ -22,6 +23,10 @@
     --shadow:
 
         0 20px 60px rgba(0,0,0,.08);
+
+    --shadow-light:0 12px 35px rgba(0,0,0,.07);
+
+    --shadow-heavy:0 25px 65px rgba(0,0,0,.13);
 
     /* BORDAS */
 

@@ -48,12 +48,16 @@
         {% endif %}
 
         {% if product.available %}
-          <button type="button" class="btn btn-gold product-buy-button" disabled>
-            Adicionar ao carrinho — próxima etapa
-          </button>
+          <form class="product-add-form" action="{% url 'shop:cart_add' product.id %}" method="post">
+            {% csrf_token %}
+            <label for="{{ cart_form.quantity.id_for_label }}">Quantidade</label>
+            {{ cart_form.quantity }}
+            {{ cart_form.replace }}
+            <button type="submit" class="btn btn-gold product-buy-button">
+              Adicionar ao carrinho
+            </button>
+          </form>
         {% endif %}
-
-        <p class="product-payment-note">O carrinho e o pagamento serão habilitados na próxima etapa da implementação.</p>
       </div>
     </section>
   </div>

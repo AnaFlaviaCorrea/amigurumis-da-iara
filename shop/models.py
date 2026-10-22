@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
@@ -38,7 +40,14 @@ class Product(models.Model):
     slug = models.SlugField(max_length=160, unique=True, blank=True)
     short_description = models.CharField("descrição curta", max_length=220)
     description = models.TextField("descrição")
-    price = models.DecimalField("preço", max_digits=10, decimal_places=2)
+    price = models.DecimalField(
+        "preço",
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Obrigatório antes de ativar o produto na loja.",
+    )
     product_type = models.CharField(
         "modalidade",
         max_length=20,
@@ -56,6 +65,21 @@ class Product(models.Model):
     main_image = models.ImageField("imagem principal", upload_to="products/%Y/%m/")
     active = models.BooleanField("ativo", default=True)
     featured = models.BooleanField("destaque", default=False)
+    portfolio_source = models.CharField(
+        "origem no portfólio",
+        max_length=500,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    portfolio_hash = models.CharField(
+        "assinatura da imagem",
+        max_length=64,
+        blank=True,
+        db_index=True,
+        editable=False,
+    )
     created_at = models.DateTimeField("criado em", auto_now_add=True)
     updated_at = models.DateTimeField("atualizado em", auto_now=True)
 
@@ -69,12 +93,19 @@ class Product(models.Model):
 
     def clean(self):
         errors = {}
-        if self.price <= 0:
+        if self.active and self.price is None:
+            errors["price"] = "Informe o preço antes de ativar o produto."
+        elif self.price is not None and self.price <= 0:
             errors["price"] = "O preço deve ser maior que zero."
-        if self.product_type == self.ProductType.MADE_TO_ORDER and not self.production_days:
+        if (
+            self.product_type == self.ProductType.MADE_TO_ORDER
+            and not self.production_days
+        ):
             errors["production_days"] = "Informe o prazo para produzir a encomenda."
         if self.product_type == self.ProductType.READY and self.production_days:
-            errors["production_days"] = "Produtos à pronta entrega não precisam de prazo de produção."
+            errors["production_days"] = (
+                "Produtos à pronta entrega não precisam de prazo de produção."
+            )
         if errors:
             raise ValidationError(errors)
 
@@ -115,3 +146,186 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Imagem de {self.product.name}"
+
+
+class Order(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Aguardando pagamento"
+        PAID = "paid", "Pagamento aprovado"
+        PRODUCTION = "production", "Em produção"
+        READY = "ready", "Pronto para envio ou retirada"
+        SHIPPED = "shipped", "Enviado"
+        COMPLETED = "completed", "Concluído"
+        CANCELLED = "cancelled", "Cancelado"
+
+    class DeliveryMethod(models.TextChoices):
+        SHIPPING = "shipping", "Receber no endereço"
+        PICKUP = "pickup", "Retirar com a Iara"
+
+    public_id = models.UUIDField(
+        "código público", default=uuid.uuid4, unique=True, editable=False
+    )
+    full_name = models.CharField("nome completo", max_length=150)
+    email = models.EmailField("e-mail")
+    phone = models.CharField("telefone", max_length=20)
+    delivery_method = models.CharField(
+        "forma de entrega",
+        max_length=20,
+        choices=DeliveryMethod.choices,
+        default=DeliveryMethod.SHIPPING,
+    )
+    postal_code = models.CharField("CEP", max_length=9, blank=True)
+    street = models.CharField("rua", max_length=180, blank=True)
+    number = models.CharField("número", max_length=20, blank=True)
+    complement = models.CharField("complemento", max_length=100, blank=True)
+    neighborhood = models.CharField("bairro", max_length=100, blank=True)
+    city = models.CharField("cidade", max_length=100, blank=True)
+    state = models.CharField("estado", max_length=2, blank=True)
+    customer_notes = models.TextField("observações", blank=True)
+    subtotal = models.DecimalField("subtotal", max_digits=10, decimal_places=2)
+    shipping_cost = models.DecimalField(
+        "frete", max_digits=10, decimal_places=2, default=0
+    )
+    shipping_calculated = models.BooleanField("frete calculado", default=False)
+    total = models.DecimalField("total", max_digits=10, decimal_places=2)
+    status = models.CharField(
+        "situação",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField("criado em", auto_now_add=True)
+    updated_at = models.DateTimeField("atualizado em", auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "pedido"
+        verbose_name_plural = "pedidos"
+
+    def __str__(self):
+        return f"Pedido {str(self.public_id)[:8].upper()} — {self.full_name}"
+
+    def save(self, *args, **kwargs):
+        if self.subtotal is not None:
+            self.total = self.subtotal + self.shipping_cost
+        super().save(*args, **kwargs)
+
+    @property
+    def short_code(self):
+        return str(self.public_id)[:8].upper()
+
+    @property
+    def payment_ready(self):
+        return (
+            self.delivery_method == self.DeliveryMethod.PICKUP
+            or self.shipping_calculated
+        )
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="pedido",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_items",
+        verbose_name="produto",
+    )
+    product_name = models.CharField("nome do produto", max_length=140)
+    product_type = models.CharField(
+        "modalidade", max_length=20, choices=Product.ProductType.choices
+    )
+    unit_price = models.DecimalField("preço unitário", max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField("quantidade")
+    personalization_notes = models.TextField("detalhes da personalização", blank=True)
+
+    class Meta:
+        verbose_name = "item do pedido"
+        verbose_name_plural = "itens do pedido"
+
+    def __str__(self):
+        return f"{self.quantity}× {self.product_name}"
+
+    @property
+    def total_price(self):
+        return self.unit_price * self.quantity
+
+
+class PaymentAttempt(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "Criada"
+        PROCESSING = "processing", "Em processamento"
+        PROCESSED = "processed", "Processada"
+        ACTION_REQUIRED = "action_required", "Ação necessária"
+        FAILED = "failed", "Falhou"
+        CANCELED = "canceled", "Cancelada"
+        REFUNDED = "refunded", "Estornada"
+        CHARGED_BACK = "charged_back", "Contestada"
+
+    public_id = models.UUIDField(
+        "código público", default=uuid.uuid4, unique=True, editable=False
+    )
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="payment_attempts",
+        verbose_name="pedido",
+    )
+    idempotency_key = models.UUIDField(
+        "chave de idempotência",
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+    provider_order_id = models.CharField(
+        "código da order no Mercado Pago",
+        max_length=80,
+        blank=True,
+        db_index=True,
+    )
+    provider_payment_id = models.CharField(
+        "código no Mercado Pago",
+        max_length=80,
+        blank=True,
+        db_index=True,
+    )
+    status = models.CharField(
+        "situação",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+    )
+    status_detail = models.CharField("detalhe da situação", max_length=100, blank=True)
+    transaction_status = models.CharField(
+        "situação da transação",
+        max_length=30,
+        blank=True,
+    )
+
+    transaction_status_detail = models.CharField(
+        "detalhe da transação",
+        max_length=100,
+        blank=True,
+    )
+    payment_method_id = models.CharField("meio de pagamento", max_length=50, blank=True)
+    payment_type_id = models.CharField("tipo de pagamento", max_length=50, blank=True)
+    amount = models.DecimalField("valor", max_digits=10, decimal_places=2)
+    qr_code = models.TextField("código Pix", blank=True)
+    qr_code_base64 = models.TextField("imagem do QR Code Pix", blank=True)
+    ticket_url = models.URLField("link do boleto", max_length=500, blank=True)
+    created_at = models.DateTimeField("criada em", auto_now_add=True)
+    updated_at = models.DateTimeField("atualizada em", auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "tentativa de pagamento"
+        verbose_name_plural = "tentativas de pagamento"
+
+    def __str__(self):
+        return f"Pagamento {str(self.public_id)[:8].upper()} — pedido {self.order.short_code}"

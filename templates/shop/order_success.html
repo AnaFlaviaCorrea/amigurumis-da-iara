@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Pedido confirmado | Amigurumis da Iara{% endblock %}
+
+{% block content %}
+<main class="order-success-page">
+  <section class="order-success-card">
+    <span class="order-success-icon" aria-hidden="true">✓</span>
+    <p class="product-category">Pedido recebido</p>
+    <h1>Obrigada, {{ order.full_name }}!</h1>
+    {% if order.status == "paid" %}
+      <p>Seu pagamento foi aprovado e o pedido já está confirmado.</p>
+    {% else %}
+      <p>Seu pedido foi criado e está aguardando a confirmação do pagamento.</p>
+    {% endif %}
+    <div class="order-code">
+      <span>Código do pedido</span>
+      <strong>{{ order.short_code }}</strong>
+    </div>
+    <div class="order-success-details">
+      <span>{{ order.get_delivery_method_display }}</span>
+      <strong>Total parcial: R$ {{ order.total|floatformat:2 }}</strong>
+    </div>
+    <p class="order-success-note">Guarde o código acima para acompanhar seu pedido.</p>
+    <a href="{% url 'shop:product_list' %}" class="btn btn-gold">Voltar à loja</a>
+  </section>
+</main>
+{% endblock %}

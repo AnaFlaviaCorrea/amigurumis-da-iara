@@ -11,9 +11,12 @@ env/
 # Django
 db.sqlite3
 *.log
+media/products/
 
 # Variáveis de ambiente
 .env
+.env.*
+!.env.example
 
 # VS Code
 .vscode/
