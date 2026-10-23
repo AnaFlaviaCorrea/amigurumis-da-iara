@@ -759,6 +759,117 @@ class PaymentTests(TestCase):
         validate_webhook.assert_called_once()
         get_order.assert_called_once_with("ORD-WEBHOOK-123")
 
+    @patch("shop.views.create_mercado_pago_order")
+    def test_pix_order_saves_qr_code_and_keeps_order_pending(
+        self,
+        create_order,
+    ):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            amount=self.order.total,
+        )
+
+        create_order.return_value = (
+            201,
+            {
+                "id": "ORD-PIX-123",
+                "status": "action_required",
+                "status_detail": "waiting_transfer",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY-PIX-123",
+                            "status": "action_required",
+                            "status_detail": "waiting_transfer",
+                            "payment_method": {
+                                "id": "pix",
+                                "type": "bank_transfer",
+                                "qr_code": "codigo-pix-copia-e-cola",
+                                "qr_code_base64": "imagem-pix-base64",
+                                "ticket_url": (
+                                    "https://www.mercadopago.com.br/" "sandbox/pix"
+                                ),
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        response = self.client.post(
+            reverse(
+                "shop:process_payment",
+                args=[self.order.public_id],
+            ),
+            data=json.dumps(
+                {
+                    "attempt_id": str(attempt.public_id),
+                    "payment_method_id": "pix",
+                    "payment_type_id": "bank_transfer",
+                    "payer": {
+                        "email": self.order.email,
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("redirect_url", response.json())
+
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.PENDING,
+        )
+        self.assertEqual(attempt.status, "action_required")
+        self.assertEqual(
+            attempt.transaction_status,
+            "action_required",
+        )
+        self.assertEqual(attempt.payment_method_id, "pix")
+        self.assertEqual(
+            attempt.payment_type_id,
+            "bank_transfer",
+        )
+        self.assertEqual(
+            attempt.qr_code,
+            "codigo-pix-copia-e-cola",
+        )
+        self.assertEqual(
+            attempt.qr_code_base64,
+            "imagem-pix-base64",
+        )
+        self.assertTrue(attempt.ticket_url)
+
+        payment_data = create_order.call_args.args[2]
+
+        self.assertEqual(
+            payment_data["payment_method_id"],
+            "pix",
+        )
+        self.assertEqual(
+            payment_data["payment_type_id"],
+            "bank_transfer",
+        )
+        result_response = self.client.get(response.json()["redirect_url"])
+
+        self.assertEqual(result_response.status_code, 200)
+        self.assertContains(
+            result_response,
+            "Copiar código Pix",
+        )
+        self.assertContains(
+            result_response,
+            "Abrir instruções do Pix",
+        )
+        self.assertContains(
+            result_response,
+            'id="pix-code"',
+        )
+
     def test_shipping_order_is_not_charged_before_freight(self):
         self.order.delivery_method = Order.DeliveryMethod.SHIPPING
         self.order.shipping_calculated = False

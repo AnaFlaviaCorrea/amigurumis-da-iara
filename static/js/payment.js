@@ -3,21 +3,20 @@
         "cardPaymentBrick_container"
     );
 
-    if (
-        !container
-        || typeof MercadoPago === "undefined"
-    ) {
+    if (!container) {
         return;
     }
 
-    const message = document.getElementById(
-        "payment-message"
+    const message = document.getElementById("payment-message");
+    const cardPanel = document.getElementById("card-payment-panel");
+    const pixPanel = document.getElementById("pix-payment-panel");
+    const pixButton = document.getElementById("pix-payment-button");
+    const methodButtons = document.querySelectorAll(
+        "[data-payment-target]"
     );
 
     const csrfToken = (
-        document.querySelector(
-            "[name=csrfmiddlewaretoken]"
-        )?.value
+        document.querySelector("[name=csrfmiddlewaretoken]")?.value
         || document.cookie
             .split("; ")
             .find(row => row.startsWith("csrftoken="))
@@ -28,6 +27,87 @@
         message.textContent = text;
         message.hidden = false;
     };
+
+    const processPayment = async (payload) => {
+        const response = await fetch(
+            container.dataset.processUrl,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: JSON.stringify({
+                    ...payload,
+                    attempt_id: container.dataset.attemptId,
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error
+                || "Não foi possível processar o pagamento."
+            );
+        }
+
+        window.location.assign(data.redirect_url);
+    };
+
+    methodButtons.forEach(button => {
+        button.addEventListener("click", () => {
+            const selectedMethod = button.dataset.paymentTarget;
+            const isCard = selectedMethod === "card";
+
+            cardPanel.hidden = !isCard;
+            pixPanel.hidden = isCard;
+            message.hidden = true;
+
+            methodButtons.forEach(option => {
+                const isSelected = option === button;
+
+                option.classList.toggle(
+                    "is-active",
+                    isSelected
+                );
+                option.setAttribute(
+                    "aria-pressed",
+                    String(isSelected)
+                );
+            });
+        });
+    });
+
+    pixButton?.addEventListener("click", async () => {
+        const originalText = pixButton.textContent;
+
+        message.hidden = true;
+        pixButton.disabled = true;
+        pixButton.textContent = "Gerando Pix...";
+
+        try {
+            await processPayment({
+                payment_method_id: "pix",
+                payment_type_id: "bank_transfer",
+                payer: {
+                    email: container.dataset.payerEmail,
+                },
+            });
+        } catch (error) {
+            showError(error.message);
+            pixButton.disabled = false;
+            pixButton.textContent = originalText;
+        }
+    });
+
+    if (typeof MercadoPago === "undefined") {
+        showError(
+            "Não foi possível carregar o formulário de cartão."
+        );
+        return;
+    }
 
     const mercadoPago = new MercadoPago(
         container.dataset.publicKey,
@@ -54,75 +134,28 @@
                     message.hidden = true;
                 },
 
-                onSubmit: (
-                    formData,
-                    additionalData
-                ) => new Promise(
-                    (resolve, reject) => {
-                        message.hidden = true;
+                onSubmit: (formData, additionalData) => {
+                    const paymentTypeId =
+                        additionalData?.paymentTypeId;
 
-                        const paymentTypeId = (
-                            additionalData?.paymentTypeId
+                    if (!paymentTypeId) {
+                        const error = new Error(
+                            "Não foi possível identificar "
+                            + "o tipo do cartão."
                         );
 
-                        if (!paymentTypeId) {
-                            const error = new Error(
-                                "Não foi possível identificar "
-                                + "o tipo do cartão."
-                            );
-
-                            showError(error.message);
-                            reject(error);
-                            return;
-                        }
-
-                        fetch(
-                            container.dataset.processUrl,
-                            {
-                                method: "POST",
-
-                                headers: {
-                                    "Content-Type":
-                                        "application/json",
-                                    "X-CSRFToken": csrfToken,
-                                },
-
-                                body: JSON.stringify({
-                                    ...formData,
-
-                                    payment_type_id:
-                                        paymentTypeId,
-
-                                    attempt_id:
-                                        container.dataset
-                                            .attemptId,
-                                }),
-                            }
-                        )
-                            .then(async response => {
-                                const data =
-                                    await response.json();
-
-                                if (!response.ok) {
-                                    throw new Error(
-                                        data.error
-                                        || "Não foi possível "
-                                        + "processar o pagamento."
-                                    );
-                                }
-
-                                window.location.assign(
-                                    data.redirect_url
-                                );
-
-                                resolve();
-                            })
-                            .catch(error => {
-                                showError(error.message);
-                                reject(error);
-                            });
+                        showError(error.message);
+                        return Promise.reject(error);
                     }
-                ),
+
+                    return processPayment({
+                        ...formData,
+                        payment_type_id: paymentTypeId,
+                    }).catch(error => {
+                        showError(error.message);
+                        throw error;
+                    });
+                },
 
                 onError: () => {
                     showError(
