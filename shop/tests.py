@@ -870,6 +870,111 @@ class PaymentTests(TestCase):
             'id="pix-code"',
         )
 
+    @patch("shop.views.create_mercado_pago_order")
+    def test_boleto_saves_ticket_without_marking_order_as_paid(
+        self,
+        create_order,
+    ):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            amount=self.order.total,
+        )
+
+        ticket_url = "https://www.mercadopago.com.br/" "staging/payments/test/ticket"
+
+        create_order.return_value = (
+            201,
+            {
+                "id": "ORD-BOLETO-123",
+                "status": "action_required",
+                "status_detail": "waiting_payment",
+                "transactions": {
+                    "payments": [
+                        {
+                            "id": "PAY-BOLETO-123",
+                            "status": "action_required",
+                            "status_detail": "waiting_payment",
+                            "payment_method": {
+                                "id": "boleto",
+                                "type": "ticket",
+                                "ticket_url": ticket_url,
+                            },
+                        }
+                    ]
+                },
+            },
+        )
+
+        response = self.client.post(
+            reverse(
+                "shop:process_payment",
+                args=[self.order.public_id],
+            ),
+            data=json.dumps(
+                {
+                    "attempt_id": str(attempt.public_id),
+                    "payment_method_id": "boleto",
+                    "payment_type_id": "ticket",
+                    "payer": {
+                        "identification": {
+                            "type": "CPF",
+                            "number": "99999999999",
+                        },
+                        "address": {
+                            "zip_code": "06233903",
+                            "street_name": "Av. das Nações Unidas",
+                            "street_number": "3003",
+                            "neighborhood": "Bonfim",
+                            "city": "Osasco",
+                            "state": "SP",
+                        },
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            Order.Status.PENDING,
+        )
+        self.assertEqual(
+            attempt.status,
+            PaymentAttempt.Status.ACTION_REQUIRED,
+        )
+        self.assertEqual(
+            attempt.transaction_status,
+            "action_required",
+        )
+        self.assertEqual(
+            attempt.payment_method_id,
+            "boleto",
+        )
+        self.assertEqual(
+            attempt.payment_type_id,
+            "ticket",
+        )
+        self.assertEqual(
+            attempt.ticket_url,
+            ticket_url,
+        )
+        self.assertEqual(
+            attempt.provider_order_id,
+            "ORD-BOLETO-123",
+        )
+
+        sent_payload = create_order.call_args.args[2]
+
+        self.assertEqual(
+            sent_payload["payment_type_id"],
+            "ticket",
+        )
+
     def test_shipping_order_is_not_charged_before_freight(self):
         self.order.delivery_method = Order.DeliveryMethod.SHIPPING
         self.order.shipping_calculated = False

@@ -35,22 +35,79 @@
           <div id="payment-message" class="payment-message" role="alert" hidden></div>
 
           <div class="payment-method-selector" aria-label="Escolha a forma de pagamento">
-            <button type="button" class="payment-method-option is-active" data-payment-target="card" aria-pressed="true">Cartão</button>
+            <button type="button" class="payment-method-option" data-payment-target="card" aria-controls="card-payment-panel" aria-expanded="false">
+              <span class="payment-method-title">Cartão</span>
+              <span class="payment-method-description">Crédito ou débito</span>
+            </button>
 
-            <button type="button" class="payment-method-option" data-payment-target="pix" aria-pressed="false">Pix</button>
+            <button type="button" class="payment-method-option" data-payment-target="pix" aria-controls="pix-payment-panel" aria-expanded="false">
+              <span class="payment-method-title">Pix</span>
+              <span class="payment-method-description">QR Code e Copia e Cola</span>
+            </button>
+
+            <button type="button" class="payment-method-option" data-payment-target="boleto" aria-controls="boleto-payment-panel" aria-expanded="false">
+              <span class="payment-method-title">Boleto</span>
+              <span class="payment-method-description">Vencimento em três dias</span>
+            </button>
           </div>
 
-          <div id="card-payment-panel">
+          <div id="card-payment-panel" class="payment-method-panel" hidden>
             <div id="cardPaymentBrick_container" data-public-key="{{ mercado_pago_public_key }}" data-amount="{{ order.total }}" data-attempt-id="{{ attempt.public_id }}" data-process-url="{% url 'shop:process_payment' order.public_id %}" data-payer-email="{{ order.email }}"></div>
           </div>
 
-          <div id="pix-payment-panel" hidden>
-            <div class="payment-notice">
+          <div id="pix-payment-panel" class="payment-method-panel" hidden>
+            <div class="payment-method-introduction">
               <h2>Pague com Pix</h2>
-              <p>O QR Code e o código Pix Copia e Cola serão gerados na próxima tela.</p>
+              <p>Gere o QR Code e pague pelo aplicativo do seu banco.</p>
 
               <button type="button" id="pix-payment-button" class="btn btn-gold">Gerar QR Code Pix</button>
             </div>
+          </div>
+
+          <div id="boleto-payment-panel" class="payment-method-panel" hidden>
+            <div class="payment-method-introduction">
+              <h2>Pague com boleto</h2>
+              <p>Confira os dados abaixo antes de gerar o boleto.</p>
+            </div>
+
+            <div class="boleto-form-grid">
+              <label class="boleto-field boleto-field-full">
+                <span>CPF</span>
+                <input type="text" id="boleto-cpf" class="checkout-input" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" />
+              </label>
+
+              <label class="boleto-field">
+                <span>CEP</span>
+                <input type="text" id="boleto-postal-code" class="checkout-input" inputmode="numeric" autocomplete="postal-code" maxlength="9" value="{{ order.postal_code }}" placeholder="00000-000" />
+              </label>
+
+              <label class="boleto-field boleto-field-wide">
+                <span>Rua</span>
+                <input type="text" id="boleto-street" class="checkout-input" autocomplete="address-line1" value="{{ order.street }}" />
+              </label>
+
+              <label class="boleto-field">
+                <span>Número</span>
+                <input type="text" id="boleto-number" class="checkout-input" value="{{ order.number }}" />
+              </label>
+
+              <label class="boleto-field">
+                <span>Bairro</span>
+                <input type="text" id="boleto-neighborhood" class="checkout-input" value="{{ order.neighborhood }}" />
+              </label>
+
+              <label class="boleto-field">
+                <span>Cidade</span>
+                <input type="text" id="boleto-city" class="checkout-input" autocomplete="address-level2" value="{{ order.city }}" />
+              </label>
+
+              <label class="boleto-field">
+                <span>Estado</span>
+                <input type="text" id="boleto-state" class="checkout-input" autocomplete="address-level1" maxlength="2" value="{{ order.state }}" placeholder="SC" />
+              </label>
+            </div>
+
+            <button type="button" id="boleto-payment-button" class="btn btn-gold">Gerar boleto</button>
           </div>
         {% endif %}
       </section>
@@ -80,4 +137,10 @@
       </aside>
     </div>
   </main>
+{% endblock %}
+{% block extra_js %}
+  {% if order.payment_ready and payment_configured %}
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <script src="{% static 'js/payment.js' %}"></script>
+  {% endif %}
 {% endblock %}

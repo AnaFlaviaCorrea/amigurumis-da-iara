@@ -3,15 +3,11 @@ from decimal import Decimal
 import requests
 from django.conf import settings
 
-
 MERCADO_PAGO_API_URL = "https://api.mercadopago.com"
 
 
 def mercado_pago_configured():
-    return bool(
-        settings.MERCADO_PAGO_PUBLIC_KEY
-        and settings.MERCADO_PAGO_ACCESS_TOKEN
-    )
+    return bool(settings.MERCADO_PAGO_PUBLIC_KEY and settings.MERCADO_PAGO_ACCESS_TOKEN)
 
 
 def _format_amount(value):
@@ -26,9 +22,7 @@ def _mercado_pago_request(
     idempotency_key=None,
 ):
     headers = {
-        "Authorization": (
-            f"Bearer {settings.MERCADO_PAGO_ACCESS_TOKEN}"
-        ),
+        "Authorization": (f"Bearer {settings.MERCADO_PAGO_ACCESS_TOKEN}"),
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
@@ -47,11 +41,7 @@ def _mercado_pago_request(
     try:
         data = response.json()
     except ValueError:
-        data = {
-            "message": (
-                "O Mercado Pago devolveu uma resposta inválida."
-            )
-        }
+        data = {"message": ("O Mercado Pago devolveu uma resposta inválida.")}
 
     return response.status_code, data
 
@@ -59,16 +49,45 @@ def _mercado_pago_request(
 def create_mercado_pago_order(order, attempt, form_data):
     payer_data = form_data.get("payer") or {}
 
+    name_parts = order.full_name.strip().split()
+
+    first_name = name_parts[0] if name_parts else "Cliente"
+    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else first_name
+
     payer = {
         "email": order.email,
+        "first_name": first_name,
+        "last_name": last_name,
     }
 
-    identification = payer_data.get("identification")
+    identification = payer_data.get("identification") or {}
 
     if identification:
+        identification_number = "".join(
+            character
+            for character in str(identification.get("number", ""))
+            if character.isdigit()
+        )
+
         payer["identification"] = {
             "type": identification.get("type", ""),
-            "number": identification.get("number", ""),
+            "number": identification_number,
+        }
+
+    address = payer_data.get("address") or {}
+
+    if address:
+        payer["address"] = {
+            "zip_code": "".join(
+                character
+                for character in str(address.get("zip_code", ""))
+                if character.isdigit()
+            ),
+            "street_name": str(address.get("street_name", "")).strip(),
+            "street_number": str(address.get("street_number", "")).strip(),
+            "neighborhood": str(address.get("neighborhood", "")).strip(),
+            "city": str(address.get("city", "")).strip(),
+            "state": str(address.get("state", "")).strip().upper(),
         }
 
     payment_method = {
@@ -84,22 +103,23 @@ def create_mercado_pago_order(order, attempt, form_data):
 
     amount = _format_amount(order.total)
 
+    payment = {
+        "amount": amount,
+        "payment_method": payment_method,
+    }
+
+    if payment_method["id"] == "boleto":
+        payment["expiration_time"] = "P3D"
+
     order_data = {
         "type": "online",
         "processing_mode": "automatic",
         "total_amount": amount,
         "external_reference": str(order.public_id),
-        "description": (
-            f"Pedido {order.short_code} - Amigurumis da Iara"
-        ),
+        "description": (f"Pedido {order.short_code} - Amigurumis da Iara"),
         "payer": payer,
         "transactions": {
-            "payments": [
-                {
-                    "amount": amount,
-                    "payment_method": payment_method,
-                }
-            ]
+            "payments": [payment],
         },
     }
 
@@ -119,78 +139,40 @@ def get_mercado_pago_order(order_id):
 
 
 def apply_order_response(attempt, mercado_pago_order):
-    payments = (
-        (mercado_pago_order.get("transactions") or {})
-        .get("payments")
-        or []
-    )
+    payments = (mercado_pago_order.get("transactions") or {}).get("payments") or []
 
     payment = payments[0] if payments else {}
     payment_method = payment.get("payment_method") or {}
 
     attempt.provider_order_id = str(
-        mercado_pago_order.get("id")
-        or attempt.provider_order_id
+        mercado_pago_order.get("id") or attempt.provider_order_id
     )
 
-    attempt.status = (
-        mercado_pago_order.get("status")
-        or "created"
-    )
+    attempt.status = mercado_pago_order.get("status") or "created"
 
-    attempt.status_detail = (
-        mercado_pago_order.get("status_detail")
-        or ""
-    )
+    attempt.status_detail = mercado_pago_order.get("status_detail") or ""
 
-    attempt.provider_payment_id = str(
-        payment.get("id")
-        or attempt.provider_payment_id
-    )
+    attempt.provider_payment_id = str(payment.get("id") or attempt.provider_payment_id)
 
-    attempt.transaction_status = (
-        payment.get("status")
-        or ""
-    )
+    attempt.transaction_status = payment.get("status") or ""
 
-    attempt.transaction_status_detail = (
-        payment.get("status_detail")
-        or ""
-    )
+    attempt.transaction_status_detail = payment.get("status_detail") or ""
 
-    attempt.payment_method_id = (
-        payment_method.get("id")
-        or ""
-    )
+    attempt.payment_method_id = payment_method.get("id") or ""
 
-    attempt.payment_type_id = (
-        payment_method.get("type")
-        or ""
-    )
+    attempt.payment_type_id = payment_method.get("type") or ""
 
-    attempt.qr_code = (
-        payment_method.get("qr_code")
-        or ""
-    )
+    attempt.qr_code = payment_method.get("qr_code") or ""
 
-    attempt.qr_code_base64 = (
-        payment_method.get("qr_code_base64")
-        or ""
-    )
+    attempt.qr_code_base64 = payment_method.get("qr_code_base64") or ""
 
-    attempt.ticket_url = (
-        payment_method.get("ticket_url")
-        or ""
-    )
+    attempt.ticket_url = payment_method.get("ticket_url") or ""
 
     attempt.save()
 
     order = attempt.order
 
-    if (
-        attempt.status == "processed"
-        and order.status == order.Status.PENDING
-    ):
+    if attempt.status == "processed" and order.status == order.Status.PENDING:
         order.status = order.Status.PAID
 
         order.save(
@@ -206,11 +188,7 @@ def apply_order_response(attempt, mercado_pago_order):
 def mercado_pago_error_message(response_data):
     errors = response_data.get("errors") or []
 
-    messages = [
-        error.get("message")
-        for error in errors
-        if error.get("message")
-    ]
+    messages = [error.get("message") for error in errors if error.get("message")]
 
     return (
         "; ".join(messages)

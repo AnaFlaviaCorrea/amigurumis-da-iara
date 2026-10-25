@@ -262,7 +262,108 @@ def process_payment(request, public_id):
         payload = json.loads(request.body or "{}")
     except json.JSONDecodeError:
         return JsonResponse({"error": "Dados de pagamento inválidos."}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse(
+            {"error": "Dados de pagamento inválidos."},
+            status=400,
+        )
 
+    payment_method_id = payload.get("payment_method_id")
+    payment_type_id = payload.get("payment_type_id")
+
+    if payment_method_id == "pix":
+        payload["payment_type_id"] = "bank_transfer"
+
+    elif payment_method_id == "boleto":
+        payload["payment_type_id"] = "ticket"
+
+        payer = payload.get("payer")
+
+        if not isinstance(payer, dict):
+            payer = {}
+
+        payload["payer"] = payer
+
+        identification = payer.get("identification")
+
+        if not isinstance(identification, dict):
+            identification = {}
+
+        cpf = "".join(
+            character
+            for character in str(identification.get("number", ""))
+            if character.isdigit()
+        )
+
+        if identification.get("type") != "CPF" or len(cpf) != 11:
+            return JsonResponse(
+                {"error": ("Informe um CPF válido " "para gerar o boleto.")},
+                status=400,
+            )
+
+        payer["identification"] = {
+            "type": "CPF",
+            "number": cpf,
+        }
+
+        if order.delivery_method == Order.DeliveryMethod.SHIPPING:
+            payer["address"] = {
+                "zip_code": order.postal_code,
+                "street_name": order.street,
+                "street_number": order.number,
+                "neighborhood": order.neighborhood,
+                "city": order.city,
+                "state": order.state,
+            }
+
+        address = payer.get("address")
+
+        if not isinstance(address, dict):
+            address = {}
+
+        required_address_fields = {
+            "zip_code": "CEP",
+            "street_name": "rua",
+            "street_number": "número",
+            "neighborhood": "bairro",
+            "city": "cidade",
+            "state": "estado",
+        }
+
+        missing_fields = [
+            label
+            for field, label in required_address_fields.items()
+            if not str(address.get(field, "")).strip()
+        ]
+
+        if missing_fields:
+            return JsonResponse(
+                {
+                    "error": (
+                        "Informe os seguintes dados para "
+                        "gerar o boleto: " + ", ".join(missing_fields) + "."
+                    )
+                },
+                status=400,
+            )
+
+        state = str(address.get("state", "")).strip()
+
+        if len(state) != 2:
+            return JsonResponse(
+                {"error": ("Informe o estado utilizando " "duas letras, como SC.")},
+                status=400,
+            )
+
+    elif payment_type_id not in {
+        "credit_card",
+        "debit_card",
+        "prepaid_card",
+    }:
+        return JsonResponse(
+            {"error": "Forma de pagamento inválida."},
+            status=400,
+        )
     attempt = get_object_or_404(
         PaymentAttempt,
         public_id=payload.pop("attempt_id", None),
