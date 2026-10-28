@@ -25,6 +25,59 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
 
+class ShippingProfile(models.Model):
+    class Size(models.TextChoices):
+        SMALL = "small", "Pequeno"
+        MEDIUM = "medium", "Médio"
+        LARGE = "large", "Grande"
+
+    size = models.CharField(
+        "porte",
+        max_length=20,
+        choices=Size.choices,
+        unique=True,
+    )
+    weight = models.DecimalField(
+        "peso estimado em kg",
+        max_digits=6,
+        decimal_places=3,
+        help_text="Informe o peso da peça já embalada.",
+    )
+    height = models.PositiveIntegerField(
+        "altura da embalagem em cm",
+    )
+    width = models.PositiveIntegerField(
+        "largura da embalagem em cm",
+    )
+    length = models.PositiveIntegerField(
+        "comprimento da embalagem em cm",
+    )
+    active = models.BooleanField("ativo", default=True)
+
+    class Meta:
+        ordering = ("size",)
+        verbose_name = "perfil de envio"
+        verbose_name_plural = "perfis de envio"
+
+    def __str__(self):
+        return self.get_size_display()
+
+    def clean(self):
+        errors = {}
+
+        if self.weight is not None and self.weight <= 0:
+            errors["weight"] = "O peso deve ser maior que zero."
+
+        for field_name in ("height", "width", "length"):
+            value = getattr(self, field_name, None)
+
+            if value is not None and value <= 0:
+                errors[field_name] = "A dimensão deve ser maior que zero."
+
+        if errors:
+            raise ValidationError(errors)
+
+
 class Product(models.Model):
     class ProductType(models.TextChoices):
         READY = "ready", "Pronta entrega"
@@ -62,6 +115,24 @@ class Product(models.Model):
         help_text="Preencha apenas para produtos sob encomenda.",
     )
     customizable = models.BooleanField("permite personalização", default=False)
+    requires_reference_photos = models.BooleanField(
+        "exige fotos de referência",
+        default=False,
+        help_text=(
+            "Ative para pets realistas e outras peças "
+            "produzidas com base em fotografias."
+        ),
+    )
+
+    shipping_profile = models.ForeignKey(
+        ShippingProfile,
+        on_delete=models.PROTECT,
+        related_name="products",
+        verbose_name="perfil de envio",
+        null=True,
+        blank=True,
+        help_text=("Peso e dimensões estimados da peça embalada."),
+    )
     main_image = models.ImageField("imagem principal", upload_to="products/%Y/%m/")
     active = models.BooleanField("ativo", default=True)
     featured = models.BooleanField("destaque", default=False)
@@ -105,6 +176,10 @@ class Product(models.Model):
         if self.product_type == self.ProductType.READY and self.production_days:
             errors["production_days"] = (
                 "Produtos à pronta entrega não precisam de prazo de produção."
+            )
+        if self.requires_reference_photos and not self.customizable:
+            errors["requires_reference_photos"] = (
+                "Um produto que exige fotos também deve " "permitir personalização."
             )
         if errors:
             raise ValidationError(errors)

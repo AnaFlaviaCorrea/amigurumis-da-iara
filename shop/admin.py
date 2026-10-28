@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import Category, Order, OrderItem, PaymentAttempt, Product, ProductImage
+from .models import (
+    Category,
+    Order,
+    OrderItem,
+    PaymentAttempt,
+    Product,
+    ProductImage,
+    ShippingProfile,
+)
 
 
 @admin.register(Category)
@@ -9,6 +17,20 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ("active",)
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+
+
+@admin.register(ShippingProfile)
+class ShippingProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "size",
+        "weight",
+        "height",
+        "width",
+        "length",
+        "active",
+    )
+    list_filter = ("active",)
+    list_editable = ("active",)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -22,13 +44,23 @@ class ProductAdmin(admin.ModelAdmin):
         "name",
         "category",
         "product_type",
+        "shipping_profile",
         "price",
         "stock",
+        "requires_reference_photos",
         "active",
         "featured",
     )
     list_editable = ("price", "stock", "active", "featured")
-    list_filter = ("product_type", "category", "active", "featured")
+    list_filter = (
+        "product_type",
+        "category",
+        "shipping_profile",
+        "requires_reference_photos",
+        "customizable",
+        "active",
+        "featured",
+    )
     search_fields = ("name", "short_description", "description")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("portfolio_source", "portfolio_hash")

@@ -10,7 +10,41 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Category, Order, OrderItem, PaymentAttempt, Product
+from .models import Category, Order, OrderItem, PaymentAttempt, Product, ShippingProfile
+
+
+class ShippingProfileModelTests(TestCase):
+    def make_profile(self, **overrides):
+        data = {
+            "size": ShippingProfile.Size.SMALL,
+            "weight": Decimal("0.500"),
+            "height": 15,
+            "width": 20,
+            "length": 25,
+        }
+        data.update(overrides)
+        return ShippingProfile(**data)
+
+    def test_shipping_profile_rejects_zero_weight(self):
+        profile = self.make_profile(weight=Decimal("0.000"))
+
+        with self.assertRaises(ValidationError) as error:
+            profile.full_clean()
+
+        self.assertIn("weight", error.exception.message_dict)
+
+    def test_shipping_profile_rejects_zero_dimension(self):
+        profile = self.make_profile(height=0)
+
+        with self.assertRaises(ValidationError) as error:
+            profile.full_clean()
+
+        self.assertIn("height", error.exception.message_dict)
+
+    def test_shipping_profile_accepts_valid_measurements(self):
+        profile = self.make_profile()
+
+        profile.full_clean()
 
 
 class ProductModelTests(TestCase):
@@ -49,6 +83,28 @@ class ProductModelTests(TestCase):
             product.full_clean(exclude=("main_image",))
 
         self.assertIn("production_days", error.exception.message_dict)
+
+    def test_reference_photos_require_customizable_product(self):
+        product = self.make_product(
+            requires_reference_photos=True,
+            customizable=False,
+        )
+
+        with self.assertRaises(ValidationError) as error:
+            product.full_clean(exclude=("main_image",))
+
+        self.assertIn(
+            "requires_reference_photos",
+            error.exception.message_dict,
+        )
+
+    def test_customizable_product_can_require_reference_photos(self):
+        product = self.make_product(
+            requires_reference_photos=True,
+            customizable=True,
+        )
+
+        product.full_clean(exclude=("main_image",))
 
     def test_slug_is_generated_and_unique(self):
         first = self.make_product()
