@@ -44,8 +44,12 @@ class Cart:
 
     def __iter__(self):
         product_ids = self.cart.keys()
-        products = Product.objects.filter(id__in=product_ids, active=True).select_related("category")
-
+        products = Product.objects.filter(
+            id__in=product_ids, active=True
+        ).select_related(
+            "category",
+            "shipping_profile",
+        )
         cart = self.cart.copy()
         valid_ids = set()
         for product in products:

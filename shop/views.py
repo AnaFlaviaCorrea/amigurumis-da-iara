@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from decimal import Decimal, InvalidOperation
 
 from .cart import Cart
 from .forms import CartAddForm, CheckoutForm
@@ -22,6 +23,13 @@ from .payments import (
     mercado_pago_configured,
     mercado_pago_error_message,
     validate_mercado_pago_webhook,
+)
+from .shipping import (
+    ShippingAPIError,
+    ShippingConfigurationError,
+    build_cart_shipping_products,
+    calculate_shipping,
+    normalize_postal_code,
 )
 
 
@@ -139,6 +147,77 @@ def cart_remove(request, product_id):
     return redirect("shop:cart_detail")
 
 
+@require_POST
+def calculate_shipping_quotes(request):
+    cart = Cart(request)
+
+    if len(cart) == 0:
+        return JsonResponse(
+            {"error": "Seu carrinho está vazio."},
+            status=400,
+        )
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"error": "Dados de frete inválidos."},
+            status=400,
+        )
+
+    if not isinstance(payload, dict):
+        return JsonResponse(
+            {"error": "Dados de frete inválidos."},
+            status=400,
+        )
+
+    try:
+        postal_code = normalize_postal_code(payload.get("postal_code", ""))
+        products = build_cart_shipping_products(cart)
+        quotes = calculate_shipping(
+            postal_code,
+            products,
+        )
+    except ValueError as error:
+        return JsonResponse(
+            {"error": str(error)},
+            status=400,
+        )
+    except ShippingConfigurationError as error:
+        return JsonResponse(
+            {"error": str(error)},
+            status=503,
+        )
+    except ShippingAPIError as error:
+        return JsonResponse(
+            {"error": str(error)},
+            status=502,
+        )
+
+    serialized_quotes = [
+        {
+            "service_id": quote["service_id"],
+            "service_name": quote["service_name"],
+            "company_name": quote["company_name"],
+            "price": f'{quote["price"]:.2f}',
+            "delivery_time": quote["delivery_time"],
+        }
+        for quote in quotes
+    ]
+
+    if not serialized_quotes:
+        return JsonResponse(
+            {"error": ("Nenhuma opção de entrega foi encontrada " "para esse CEP.")},
+            status=404,
+        )
+
+    request.session["shipping_quotes"] = serialized_quotes
+    request.session["shipping_quote_postal_code"] = postal_code
+    request.session.modified = True
+
+    return JsonResponse({"quotes": serialized_quotes})
+
+
 def checkout(request):
     cart = Cart(request)
     cart_items = list(cart)
@@ -165,41 +244,133 @@ def checkout(request):
         )
         return redirect("shop:cart_detail")
 
+    selected_shipping_service_id = ""
+
     if request.method == "POST":
         form = CheckoutForm(request.POST)
-        if form.is_valid():
-            with transaction.atomic():
-                subtotal = cart.get_subtotal()
-                order = form.save(commit=False)
-                order.subtotal = subtotal
-                order.shipping_cost = 0
-                order.shipping_calculated = (
-                    order.delivery_method == Order.DeliveryMethod.PICKUP
-                )
-                order.total = subtotal
-                order.save()
+        selected_shipping_service_id = request.POST.get(
+            "shipping_service_id",
+            "",
+        )
 
-                for item in cart_items:
-                    product = item["product"]
-                    OrderItem.objects.create(
-                        order=order,
-                        product=product,
-                        product_name=product.name,
-                        product_type=product.product_type,
-                        unit_price=item["price"],
-                        quantity=item["quantity"],
+        if form.is_valid():
+            delivery_method = form.cleaned_data["delivery_method"]
+
+            selected_quote = None
+            shipping_cost = Decimal("0.00")
+            shipping_calculated = delivery_method == Order.DeliveryMethod.PICKUP
+
+            if delivery_method == Order.DeliveryMethod.SHIPPING:
+                try:
+                    postal_code = normalize_postal_code(
+                        form.cleaned_data["postal_code"]
+                    )
+                except ValueError as error:
+                    form.add_error(
+                        "postal_code",
+                        str(error),
+                    )
+                else:
+                    quoted_postal_code = request.session.get(
+                        "shipping_quote_postal_code"
+                    )
+                    available_quotes = request.session.get(
+                        "shipping_quotes",
+                        [],
                     )
 
-                request.session["last_order_id"] = str(order.public_id)
-                cart.clear()
-            return redirect("shop:order_payment", public_id=order.public_id)
+                    if quoted_postal_code == postal_code:
+                        selected_quote = next(
+                            (
+                                quote
+                                for quote in available_quotes
+                                if quote["service_id"] == selected_shipping_service_id
+                            ),
+                            None,
+                        )
+
+                    if selected_quote is None:
+                        form.add_error(
+                            None,
+                            ("Calcule o frete e escolha " "uma opção de entrega."),
+                        )
+                    else:
+                        try:
+                            shipping_cost = Decimal(selected_quote["price"])
+                        except (
+                            InvalidOperation,
+                            TypeError,
+                            ValueError,
+                        ):
+                            form.add_error(
+                                None,
+                                ("A opção de frete escolhida " "não é válida."),
+                            )
+                        else:
+                            if shipping_cost < 0:
+                                form.add_error(
+                                    None,
+                                    ("A opção de frete escolhida " "não é válida."),
+                                )
+                            else:
+                                shipping_calculated = True
+
+            if not form.errors:
+                with transaction.atomic():
+                    subtotal = cart.get_subtotal()
+                    order = form.save(commit=False)
+                    order.subtotal = subtotal
+                    order.shipping_cost = shipping_cost
+                    order.shipping_calculated = shipping_calculated
+
+                    if selected_quote is not None:
+                        order.shipping_service_id = selected_quote["service_id"]
+                        order.shipping_service_name = selected_quote["service_name"]
+                        order.shipping_company_name = selected_quote["company_name"]
+                        order.shipping_delivery_time = selected_quote["delivery_time"]
+
+                    order.total = subtotal
+                    order.save()
+
+                    for item in cart_items:
+                        product = item["product"]
+
+                        OrderItem.objects.create(
+                            order=order,
+                            product=product,
+                            product_name=product.name,
+                            product_type=product.product_type,
+                            unit_price=item["price"],
+                            quantity=item["quantity"],
+                        )
+
+                    request.session["last_order_id"] = str(order.public_id)
+                    request.session.pop(
+                        "shipping_quotes",
+                        None,
+                    )
+                    request.session.pop(
+                        "shipping_quote_postal_code",
+                        None,
+                    )
+                    cart.clear()
+
+                return redirect(
+                    "shop:order_payment",
+                    public_id=order.public_id,
+                )
     else:
         form = CheckoutForm()
 
     return render(
         request,
         "shop/checkout.html",
-        {"cart": cart, "cart_items": cart_items, "form": form},
+        {
+            "cart": cart,
+            "cart_items": cart_items,
+            "form": form,
+            "selected_shipping_service_id": (selected_shipping_service_id),
+        },
     )
 
 

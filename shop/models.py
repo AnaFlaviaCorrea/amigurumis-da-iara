@@ -261,6 +261,29 @@ class Order(models.Model):
     shipping_cost = models.DecimalField(
         "frete", max_digits=10, decimal_places=2, default=0
     )
+    shipping_service_id = models.CharField(
+        "código do serviço de entrega",
+        max_length=50,
+        blank=True,
+    )
+
+    shipping_service_name = models.CharField(
+        "serviço de entrega",
+        max_length=100,
+        blank=True,
+    )
+
+    shipping_company_name = models.CharField(
+        "transportadora",
+        max_length=100,
+        blank=True,
+    )
+
+    shipping_delivery_time = models.PositiveIntegerField(
+        "prazo estimado em dias úteis",
+        null=True,
+        blank=True,
+    )
     shipping_calculated = models.BooleanField("frete calculado", default=False)
     total = models.DecimalField("total", max_digits=10, decimal_places=2)
     status = models.CharField(

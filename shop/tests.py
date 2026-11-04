@@ -2,7 +2,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
@@ -11,6 +11,13 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import Category, Order, OrderItem, PaymentAttempt, Product, ShippingProfile
+from .shipping import (
+    ShippingAPIError,
+    ShippingConfigurationError,
+    calculate_shipping,
+    normalize_postal_code,
+    build_cart_shipping_products,
+)
 
 
 class ShippingProfileModelTests(TestCase):
@@ -45,6 +52,361 @@ class ShippingProfileModelTests(TestCase):
         profile = self.make_profile()
 
         profile.full_clean()
+
+
+@override_settings(
+    MELHOR_ENVIO_BASE_URL="https://sandbox.melhorenvio.com.br",
+    MELHOR_ENVIO_ACCESS_TOKEN="token-de-teste",
+    MELHOR_ENVIO_ORIGIN_POSTAL_CODE="88101000",
+    MELHOR_ENVIO_USER_AGENT=("Amigurumis da Iara (teste@example.com)"),
+)
+class ShippingServiceTests(TestCase):
+    def setUp(self):
+        self.products = [
+            {
+                "id": "10",
+                "height": 15,
+                "width": 20,
+                "length": 25,
+                "weight": 0.5,
+                "insurance_value": 350.0,
+                "quantity": 1,
+            }
+        ]
+
+    def test_normalize_postal_code_removes_formatting(self):
+        postal_code = normalize_postal_code("88058-000")
+
+        self.assertEqual(postal_code, "88058000")
+
+    def test_normalize_postal_code_rejects_invalid_value(self):
+        with self.assertRaises(ValueError):
+            normalize_postal_code("1234")
+
+    def test_builds_products_from_cart_items(self):
+        profile = ShippingProfile(
+            size=ShippingProfile.Size.SMALL,
+            weight=Decimal("0.500"),
+            height=15,
+            width=20,
+            length=25,
+            active=True,
+        )
+
+        product = Product(
+            id=10,
+            name="Pet realista pequeno",
+            shipping_profile=profile,
+        )
+
+        cart = [
+            {
+                "product": product,
+                "price": Decimal("350.00"),
+                "quantity": 2,
+            }
+        ]
+
+        shipping_products = build_cart_shipping_products(cart)
+
+        self.assertEqual(
+            shipping_products,
+            [
+                {
+                    "id": "10",
+                    "width": 20,
+                    "height": 15,
+                    "length": 25,
+                    "weight": 0.5,
+                    "insurance_value": 350.0,
+                    "quantity": 2,
+                }
+            ],
+        )
+
+    def test_rejects_product_without_shipping_profile(self):
+        product = Product(
+            id=10,
+            name="Produto sem perfil",
+            shipping_profile=None,
+        )
+
+        cart = [
+            {
+                "product": product,
+                "price": Decimal("100.00"),
+                "quantity": 1,
+            }
+        ]
+
+        with self.assertRaises(ShippingConfigurationError) as error:
+            build_cart_shipping_products(cart)
+
+        self.assertIn(
+            "não possui um perfil de envio ativo",
+            str(error.exception),
+        )
+
+    @override_settings(MELHOR_ENVIO_ACCESS_TOKEN="")
+    def test_calculation_requires_configuration(self):
+        with self.assertRaises(ShippingConfigurationError):
+            calculate_shipping(
+                "88058-000",
+                self.products,
+            )
+
+    @patch("shop.shipping.requests.post")
+    def test_calculation_returns_valid_quotes(self, post):
+        response = Mock()
+        response.ok = True
+        response.json.return_value = [
+            {
+                "id": 1,
+                "name": "PAC",
+                "price": "30.00",
+                "custom_price": "32.50",
+                "delivery_time": 8,
+                "custom_delivery_time": 10,
+                "company": {
+                    "name": "Correios",
+                },
+            },
+            {
+                "id": 2,
+                "name": "Serviço indisponível",
+                "error": "Não disponível para este CEP.",
+            },
+        ]
+        post.return_value = response
+
+        quotes = calculate_shipping(
+            "88058-000",
+            self.products,
+        )
+
+        self.assertEqual(len(quotes), 1)
+        self.assertEqual(quotes[0]["service_id"], "1")
+        self.assertEqual(quotes[0]["service_name"], "PAC")
+        self.assertEqual(
+            quotes[0]["company_name"],
+            "Correios",
+        )
+        self.assertEqual(
+            quotes[0]["price"],
+            Decimal("32.50"),
+        )
+        self.assertEqual(
+            quotes[0]["delivery_time"],
+            10,
+        )
+
+        post.assert_called_once()
+
+        request = post.call_args
+        self.assertEqual(
+            request.args[0],
+            ("https://sandbox.melhorenvio.com.br" "/api/v2/me/shipment/calculate"),
+        )
+        self.assertEqual(
+            request.kwargs["json"]["from"]["postal_code"],
+            "88101000",
+        )
+        self.assertEqual(
+            request.kwargs["json"]["to"]["postal_code"],
+            "88058000",
+        )
+        self.assertEqual(
+            request.kwargs["json"]["products"],
+            self.products,
+        )
+        self.assertEqual(
+            request.kwargs["headers"]["Authorization"],
+            "Bearer token-de-teste",
+        )
+        self.assertEqual(request.kwargs["timeout"], 20)
+
+    @patch("shop.shipping.requests.post")
+    def test_api_error_is_converted_to_shipping_error(
+        self,
+        post,
+    ):
+        response = Mock()
+        response.ok = False
+        response.json.return_value = {
+            "message": "CEP de destino inválido.",
+        }
+        post.return_value = response
+
+        with self.assertRaises(ShippingAPIError) as error:
+            calculate_shipping(
+                "88058-000",
+                self.products,
+            )
+
+        self.assertEqual(
+            str(error.exception),
+            "CEP de destino inválido.",
+        )
+
+
+class ShippingQuoteViewTests(TestCase):
+    def setUp(self):
+        self.category = Category.objects.create(
+            name="Pets",
+        )
+
+        self.profile = ShippingProfile.objects.create(
+            size=ShippingProfile.Size.SMALL,
+            weight=Decimal("0.500"),
+            height=15,
+            width=20,
+            length=25,
+        )
+
+        self.product = Product.objects.create(
+            category=self.category,
+            name="Pet realista pequeno",
+            short_description="Peça artesanal.",
+            description="Produzido artesanalmente.",
+            price=Decimal("350.00"),
+            product_type=Product.ProductType.READY,
+            stock=1,
+            shipping_profile=self.profile,
+            main_image=SimpleUploadedFile(
+                "pet.jpg",
+                b"imagem",
+                content_type="image/jpeg",
+            ),
+        )
+
+        session = self.client.session
+        session["cart"] = {
+            str(self.product.id): {
+                "quantity": 1,
+            }
+        }
+        session.save()
+
+        self.url = reverse("shop:calculate_shipping_quotes")
+
+    @patch("shop.views.calculate_shipping")
+    def test_calculates_and_saves_quotes_in_session(
+        self,
+        calculate,
+    ):
+        calculate.return_value = [
+            {
+                "service_id": "1",
+                "service_name": "PAC",
+                "company_name": "Correios",
+                "price": Decimal("32.50"),
+                "delivery_time": 10,
+            }
+        ]
+
+        response = self.client.post(
+            self.url,
+            data=json.dumps(
+                {
+                    "postal_code": "88058-000",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["quotes"][0]["price"],
+            "32.50",
+        )
+
+        session = self.client.session
+
+        self.assertEqual(
+            session["shipping_quote_postal_code"],
+            "88058000",
+        )
+        self.assertEqual(
+            session["shipping_quotes"][0]["service_name"],
+            "PAC",
+        )
+
+        calculate.assert_called_once()
+
+        postal_code, products = calculate.call_args.args
+
+        self.assertEqual(postal_code, "88058000")
+        self.assertEqual(products[0]["id"], str(self.product.id))
+        self.assertEqual(products[0]["quantity"], 1)
+        self.assertEqual(products[0]["weight"], 0.5)
+
+    @patch("shop.views.calculate_shipping")
+    def test_rejects_invalid_postal_code(
+        self,
+        calculate,
+    ):
+        response = self.client.post(
+            self.url,
+            data=json.dumps(
+                {
+                    "postal_code": "1234",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            "CEP válido",
+            response.json()["error"],
+        )
+        calculate.assert_not_called()
+
+    @patch("shop.views.calculate_shipping")
+    def test_returns_not_found_when_no_quote_exists(
+        self,
+        calculate,
+    ):
+        calculate.return_value = []
+
+        response = self.client.post(
+            self.url,
+            data=json.dumps(
+                {
+                    "postal_code": "88058-000",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertIn(
+            "Nenhuma opção de entrega",
+            response.json()["error"],
+        )
+
+    @patch("shop.views.calculate_shipping")
+    def test_converts_api_failure_to_bad_gateway(
+        self,
+        calculate,
+    ):
+        calculate.side_effect = ShippingAPIError("Serviço de frete indisponível.")
+
+        response = self.client.post(
+            self.url,
+            data=json.dumps(
+                {
+                    "postal_code": "88058-000",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()["error"],
+            "Serviço de frete indisponível.",
+        )
 
 
 class ProductModelTests(TestCase):
@@ -375,27 +737,112 @@ class CheckoutTests(TestCase):
 
     def test_shipping_checkout_saves_address(self):
         self.add_product()
+
+        session = self.client.session
+        session["shipping_quote_postal_code"] = "88101000"
+        session["shipping_quotes"] = [
+            {
+                "service_id": "1",
+                "service_name": "PAC",
+                "company_name": "Correios",
+                "price": "32.50",
+                "delivery_time": 10,
+            }
+        ]
+        session.save()
+
         response = self.client.post(
             reverse("shop:checkout"),
             {
                 "full_name": "Ana Cliente",
                 "email": "ana@example.com",
                 "phone": "(48) 99999-9999",
-                "delivery_method": Order.DeliveryMethod.SHIPPING,
+                "delivery_method": (Order.DeliveryMethod.SHIPPING),
                 "postal_code": "88101-000",
                 "street": "Rua das Flores",
                 "number": "100",
                 "neighborhood": "Campinas",
                 "city": "São José",
                 "state": "sc",
+                "shipping_service_id": "1",
             },
         )
 
         self.assertEqual(response.status_code, 302)
+
         order = Order.objects.get()
+
         self.assertEqual(order.state, "SC")
         self.assertEqual(order.city, "São José")
-        self.assertFalse(order.shipping_calculated)
+        self.assertTrue(order.shipping_calculated)
+        self.assertEqual(
+            order.shipping_cost,
+            Decimal("32.50"),
+        )
+        self.assertEqual(
+            order.shipping_service_id,
+            "1",
+        )
+        self.assertEqual(
+            order.shipping_service_name,
+            "PAC",
+        )
+        self.assertEqual(
+            order.shipping_company_name,
+            "Correios",
+        )
+        self.assertEqual(
+            order.shipping_delivery_time,
+            10,
+        )
+        self.assertEqual(
+            order.subtotal,
+            Decimal("275.00"),
+        )
+        self.assertEqual(
+            order.total,
+            Decimal("307.50"),
+        )
+
+        session = self.client.session
+
+        self.assertNotIn(
+            "shipping_quotes",
+            session,
+        )
+        self.assertNotIn(
+            "shipping_quote_postal_code",
+            session,
+        )
+
+    def test_shipping_checkout_requires_selected_quote(
+        self,
+    ):
+        self.add_product()
+
+        response = self.client.post(
+            reverse("shop:checkout"),
+            {
+                "full_name": "Ana Cliente",
+                "email": "ana@example.com",
+                "phone": "(48) 99999-9999",
+                "delivery_method": (Order.DeliveryMethod.SHIPPING),
+                "postal_code": "88101-000",
+                "street": "Rua das Flores",
+                "number": "100",
+                "neighborhood": "Campinas",
+                "city": "São José",
+                "state": "SC",
+                "shipping_service_id": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Calcule o frete e escolha uma opção",
+        )
+        self.assertEqual(Order.objects.count(), 0)
 
     def test_success_page_is_limited_to_last_session_order(self):
         other_order = Order.objects.create(
@@ -418,6 +865,53 @@ class CheckoutTests(TestCase):
     MERCADO_PAGO_PUBLIC_KEY="TEST-public-key",
     MERCADO_PAGO_ACCESS_TOKEN="TEST-access-token",
 )
+class OrderShippingTests(TestCase):
+    def test_order_saves_selected_shipping_service(self):
+        order = Order.objects.create(
+            full_name="Ana Cliente",
+            email="ana@example.com",
+            phone="48999999999",
+            delivery_method=Order.DeliveryMethod.SHIPPING,
+            postal_code="88058000",
+            subtotal=Decimal("350.00"),
+            shipping_cost=Decimal("32.50"),
+            shipping_service_id="1",
+            shipping_service_name="PAC",
+            shipping_company_name="Correios",
+            shipping_delivery_time=10,
+            shipping_calculated=True,
+            total=Decimal("0.00"),
+        )
+
+        order.refresh_from_db()
+
+        self.assertEqual(
+            order.shipping_cost,
+            Decimal("32.50"),
+        )
+        self.assertEqual(
+            order.shipping_service_id,
+            "1",
+        )
+        self.assertEqual(
+            order.shipping_service_name,
+            "PAC",
+        )
+        self.assertEqual(
+            order.shipping_company_name,
+            "Correios",
+        )
+        self.assertEqual(
+            order.shipping_delivery_time,
+            10,
+        )
+        self.assertTrue(order.shipping_calculated)
+        self.assertEqual(
+            order.total,
+            Decimal("382.50"),
+        )
+
+
 class PaymentTests(TestCase):
     def setUp(self):
         self.order = Order.objects.create(

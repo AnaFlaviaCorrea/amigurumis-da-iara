@@ -33,18 +33,39 @@ SECRET_KEY = os.getenv(
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in {"1", "true", "yes"}
 
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv(
-        "DJANGO_ALLOWED_HOSTS",
-        "127.0.0.1,localhost",
-    ).split(",")
-    if host.strip()
+    "127.0.0.1",
+    "localhost",
 ]
+
+CSRF_TRUSTED_ORIGINS = []
+
+if DEBUG:
+    ALLOWED_HOSTS.append(".trycloudflare.com")
+    CSRF_TRUSTED_ORIGINS.append("https://*.trycloudflare.com")
 
 MERCADO_PAGO_PUBLIC_KEY = os.getenv("MERCADO_PAGO_PUBLIC_KEY", "")
 MERCADO_PAGO_ACCESS_TOKEN = os.getenv("MERCADO_PAGO_ACCESS_TOKEN", "")
 MERCADO_PAGO_WEBHOOK_SECRET = os.getenv("MERCADO_PAGO_WEBHOOK_SECRET", "")
 
+MELHOR_ENVIO_BASE_URL = os.getenv(
+    "MELHOR_ENVIO_BASE_URL",
+    "https://sandbox.melhorenvio.com.br",
+).rstrip("/")
+
+MELHOR_ENVIO_ACCESS_TOKEN = os.getenv(
+    "MELHOR_ENVIO_ACCESS_TOKEN",
+    "",
+)
+
+MELHOR_ENVIO_ORIGIN_POSTAL_CODE = os.getenv(
+    "MELHOR_ENVIO_ORIGIN_POSTAL_CODE",
+    "",
+)
+
+MELHOR_ENVIO_USER_AGENT = os.getenv(
+    "MELHOR_ENVIO_USER_AGENT",
+    "",
+)
 
 # Application definition
 
