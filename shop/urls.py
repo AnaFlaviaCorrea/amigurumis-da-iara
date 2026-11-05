@@ -12,6 +12,16 @@ urlpatterns = [
     path("carrinho/remover/<int:product_id>/", views.cart_remove, name="cart_remove"),
     path("finalizar/", views.checkout, name="checkout"),
     path(
+        "melhor-envio/autorizar/",
+        views.melhor_envio_authorize,
+        name="melhor_envio_authorize",
+    ),
+    path(
+        "melhor-envio/callback/",
+        views.melhor_envio_callback,
+        name="melhor_envio_callback",
+    ),
+    path(
         "frete/calcular/",
         views.calculate_shipping_quotes,
         name="calculate_shipping_quotes",

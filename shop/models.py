@@ -25,6 +25,44 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
 
+class MelhorEnvioCredential(models.Model):
+    access_token = models.TextField(
+        "token de acesso",
+    )
+    refresh_token = models.TextField(
+        "token de renovação",
+    )
+    token_type = models.CharField(
+        "tipo do token",
+        max_length=30,
+        default="Bearer",
+    )
+    scope = models.TextField(
+        "permissões",
+        blank=True,
+    )
+    expires_at = models.DateTimeField(
+        "expira em",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        "criado em",
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        "atualizado em",
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = "credencial do Melhor Envio"
+        verbose_name_plural = "credenciais do Melhor Envio"
+
+    def __str__(self):
+        return "Credencial do Melhor Envio"
+
+
 class ShippingProfile(models.Model):
     class Size(models.TextChoices):
         SMALL = "small", "Pequeno"

@@ -1,5 +1,4 @@
-import json
-import logging
+import logging, secrets, json
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +10,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib.admin.views.decorators import (
+    staff_member_required,
+)
 from decimal import Decimal, InvalidOperation
 
 from .cart import Cart
@@ -30,6 +32,9 @@ from .shipping import (
     build_cart_shipping_products,
     calculate_shipping,
     normalize_postal_code,
+    ShippingOAuthError,
+    build_authorization_url,
+    exchange_authorization_code,
 )
 
 
@@ -216,6 +221,79 @@ def calculate_shipping_quotes(request):
     request.session.modified = True
 
     return JsonResponse({"quotes": serialized_quotes})
+
+
+@staff_member_required
+def melhor_envio_authorize(request):
+    state = secrets.token_urlsafe(32)
+
+    request.session["melhor_envio_oauth_state"] = state
+
+    try:
+        authorization_url = build_authorization_url(state)
+    except ShippingConfigurationError as error:
+        return HttpResponse(
+            str(error),
+            status=503,
+        )
+
+    return redirect(authorization_url)
+
+
+def melhor_envio_callback(request):
+    expected_state = request.session.pop(
+        "melhor_envio_oauth_state",
+        None,
+    )
+    received_state = request.GET.get("state", "")
+    code = request.GET.get("code", "")
+    oauth_error = request.GET.get("error", "")
+
+    if oauth_error:
+        return HttpResponse(
+            "A autorização foi recusada ou cancelada.",
+            status=400,
+        )
+
+    if (
+        not expected_state
+        or not received_state
+        or not secrets.compare_digest(
+            expected_state,
+            received_state,
+        )
+    ):
+        return HttpResponse(
+            "Não foi possível validar a autorização.",
+            status=400,
+        )
+
+    if not code:
+        return HttpResponse(
+            "O código de autorização não foi recebido.",
+            status=400,
+        )
+
+    try:
+        exchange_authorization_code(code)
+    except ShippingConfigurationError as error:
+        return HttpResponse(
+            str(error),
+            status=503,
+        )
+    except ShippingOAuthError as error:
+        return HttpResponse(
+            str(error),
+            status=502,
+        )
+
+    return HttpResponse(
+        (
+            "<h1>Melhor Envio conectado!</h1>"
+            "<p>A autorização foi concluída. "
+            "Você já pode fechar esta página.</p>"
+        )
+    )
 
 
 def checkout(request):

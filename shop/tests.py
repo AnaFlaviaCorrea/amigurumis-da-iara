@@ -3,14 +3,29 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlparse
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.contrib.auth import get_user_model
 
-from .models import Category, Order, OrderItem, PaymentAttempt, Product, ShippingProfile
+from shop.shipping import (
+    build_authorization_url,
+    exchange_authorization_code,
+)
+
+from .models import (
+    Category,
+    Order,
+    OrderItem,
+    PaymentAttempt,
+    Product,
+    ShippingProfile,
+    MelhorEnvioCredential,
+)
 from .shipping import (
     ShippingAPIError,
     ShippingConfigurationError,
@@ -246,6 +261,33 @@ class ShippingServiceTests(TestCase):
         self.assertEqual(
             str(error.exception),
             "CEP de destino inválido.",
+        )
+
+
+class MelhorEnvioCredentialTests(TestCase):
+    def test_string_representation_does_not_expose_tokens(
+        self,
+    ):
+        credential = MelhorEnvioCredential.objects.create(
+            access_token="access-token-secreto",
+            refresh_token="refresh-token-secreto",
+            token_type="Bearer",
+            scope="shipping-calculate",
+        )
+
+        representation = str(credential)
+
+        self.assertEqual(
+            representation,
+            "Credencial do Melhor Envio",
+        )
+        self.assertNotIn(
+            credential.access_token,
+            representation,
+        )
+        self.assertNotIn(
+            credential.refresh_token,
+            representation,
         )
 
 
@@ -1536,3 +1578,192 @@ class PaymentTests(TestCase):
 
         self.assertContains(response, "Estamos calculando o frete")
         self.assertEqual(PaymentAttempt.objects.count(), 0)
+
+
+@override_settings(
+    MELHOR_ENVIO_BASE_URL="https://sandbox.melhorenvio.com.br",
+    MELHOR_ENVIO_CLIENT_ID="client-id-teste",
+    MELHOR_ENVIO_CLIENT_SECRET="client-secret-teste",
+    MELHOR_ENVIO_REDIRECT_URI=(
+        "https://loja.exemplo.com/" "loja/melhor-envio/callback/"
+    ),
+)
+class MelhorEnvioOAuthTests(TestCase):
+    def setUp(self):
+        self.staff_user = get_user_model().objects.create_user(
+            username="administradora",
+            password="senha-segura-teste",
+            is_staff=True,
+        )
+
+    def test_authorization_url_contains_required_parameters(self):
+        authorization_url = build_authorization_url("estado-seguro-teste")
+
+        parsed_url = urlparse(authorization_url)
+        parameters = parse_qs(parsed_url.query)
+
+        self.assertEqual(
+            parsed_url.path,
+            "/oauth/authorize",
+        )
+        self.assertEqual(
+            parameters["client_id"],
+            ["client-id-teste"],
+        )
+        self.assertEqual(
+            parameters["redirect_uri"],
+            ["https://loja.exemplo.com/" "loja/melhor-envio/callback/"],
+        )
+        self.assertEqual(
+            parameters["response_type"],
+            ["code"],
+        )
+        self.assertEqual(
+            parameters["state"],
+            ["estado-seguro-teste"],
+        )
+        self.assertEqual(
+            parameters["scope"],
+            ["shipping-calculate"],
+        )
+
+    def test_authorization_requires_staff_user(self):
+        response = self.client.get(reverse("shop:melhor_envio_authorize"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+    def test_staff_user_is_redirected_to_authorization(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("shop:melhor_envio_authorize"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            response.url.startswith(
+                "https://sandbox.melhorenvio.com.br/" "oauth/authorize?"
+            )
+        )
+
+        session_state = self.client.session.get("melhor_envio_oauth_state")
+
+        self.assertTrue(session_state)
+        self.assertIn(
+            f"state={session_state}",
+            response.url,
+        )
+
+    @patch("shop.views.exchange_authorization_code")
+    def test_callback_rejects_invalid_state(
+        self,
+        exchange_code,
+    ):
+        session = self.client.session
+        session["melhor_envio_oauth_state"] = "estado-correto"
+        session.save()
+
+        response = self.client.get(
+            reverse("shop:melhor_envio_callback"),
+            {
+                "code": "codigo-teste",
+                "state": "estado-incorreto",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        exchange_code.assert_not_called()
+
+    @patch("shop.views.exchange_authorization_code")
+    def test_callback_exchanges_code_with_valid_state(
+        self,
+        exchange_code,
+    ):
+        session = self.client.session
+        session["melhor_envio_oauth_state"] = "estado-correto"
+        session.save()
+
+        response = self.client.get(
+            reverse("shop:melhor_envio_callback"),
+            {
+                "code": "codigo-autorizacao",
+                "state": "estado-correto",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Melhor Envio conectado",
+        )
+        exchange_code.assert_called_once_with("codigo-autorizacao")
+        self.assertNotIn(
+            "melhor_envio_oauth_state",
+            self.client.session,
+        )
+
+    @patch("shop.shipping.requests.post")
+    def test_exchange_code_saves_credentials(
+        self,
+        mocked_post,
+    ):
+        mocked_response = mocked_post.return_value
+        mocked_response.status_code = 200
+        mocked_response.json.return_value = {
+            "access_token": "access-token-secreto",
+            "refresh_token": "refresh-token-secreto",
+            "token_type": "Bearer",
+            "expires_in": 2592000,
+            "scope": "shipping-calculate",
+        }
+
+        exchange_authorization_code("codigo-autorizacao-teste")
+
+        credential = MelhorEnvioCredential.objects.get(pk=1)
+
+        self.assertEqual(
+            credential.access_token,
+            "access-token-secreto",
+        )
+        self.assertEqual(
+            credential.refresh_token,
+            "refresh-token-secreto",
+        )
+        self.assertEqual(
+            credential.token_type,
+            "Bearer",
+        )
+        self.assertEqual(
+            credential.scope,
+            "shipping-calculate",
+        )
+        self.assertIsNotNone(credential.expires_at)
+
+        mocked_post.assert_called_once()
+
+        request_url = mocked_post.call_args.args[0]
+        request_data = mocked_post.call_args.kwargs["data"]
+
+        self.assertEqual(
+            request_url,
+            "https://sandbox.melhorenvio.com.br/oauth/token",
+        )
+        self.assertEqual(
+            request_data["grant_type"],
+            "authorization_code",
+        )
+        self.assertEqual(
+            request_data["client_id"],
+            "client-id-teste",
+        )
+        self.assertEqual(
+            request_data["client_secret"],
+            "client-secret-teste",
+        )
+        self.assertEqual(
+            request_data["code"],
+            "codigo-autorizacao-teste",
+        )
+        self.assertEqual(
+            request_data["redirect_uri"],
+            ("https://loja.exemplo.com/" "loja/melhor-envio/callback/"),
+        )

@@ -1,7 +1,12 @@
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 import requests
 from django.conf import settings
+from django.utils import timezone
+
+from .models import MelhorEnvioCredential
 
 CALCULATE_SHIPPING_PATH = "/api/v2/me/shipment/calculate"
 
@@ -14,10 +19,133 @@ class ShippingAPIError(Exception):
     """Erro ao consultar a API do Melhor Envio."""
 
 
+class ShippingOAuthError(Exception):
+    """Erro durante a autenticação do Melhor Envio."""
+
+
+def melhor_envio_oauth_configured():
+    return bool(
+        settings.MELHOR_ENVIO_BASE_URL
+        and settings.MELHOR_ENVIO_CLIENT_ID
+        and settings.MELHOR_ENVIO_CLIENT_SECRET
+        and settings.MELHOR_ENVIO_REDIRECT_URI
+    )
+
+
+def build_authorization_url(state):
+    if not melhor_envio_oauth_configured():
+        raise ShippingConfigurationError("O OAuth do Melhor Envio não foi configurado.")
+
+    parameters = {
+        "client_id": settings.MELHOR_ENVIO_CLIENT_ID,
+        "redirect_uri": (settings.MELHOR_ENVIO_REDIRECT_URI),
+        "response_type": "code",
+        "state": state,
+        "scope": "shipping-calculate",
+    }
+
+    return (
+        f"{settings.MELHOR_ENVIO_BASE_URL}" f"/oauth/authorize?{urlencode(parameters)}"
+    )
+
+
+def exchange_authorization_code(code):
+    if not melhor_envio_oauth_configured():
+        raise ShippingConfigurationError("O OAuth do Melhor Envio não foi configurado.")
+
+    try:
+        response = requests.post(
+            (f"{settings.MELHOR_ENVIO_BASE_URL}" "/oauth/token"),
+            data={
+                "grant_type": "authorization_code",
+                "client_id": (settings.MELHOR_ENVIO_CLIENT_ID),
+                "client_secret": (settings.MELHOR_ENVIO_CLIENT_SECRET),
+                "redirect_uri": (settings.MELHOR_ENVIO_REDIRECT_URI),
+                "code": code,
+            },
+            headers={
+                "Accept": "application/json",
+            },
+            timeout=20,
+        )
+    except requests.RequestException as error:
+        raise ShippingOAuthError(
+            "Não foi possível autenticar no Melhor Envio."
+        ) from error
+
+    try:
+        response_data = response.json()
+    except ValueError as error:
+        raise ShippingOAuthError(
+            "O Melhor Envio devolveu uma resposta inválida."
+        ) from error
+
+    if not response.ok:
+        message = (
+            response_data.get("message")
+            or response_data.get("error_description")
+            or response_data.get("error")
+            or "Não foi possível concluir a autorização."
+        )
+
+        raise ShippingOAuthError(message)
+
+    access_token = response_data.get("access_token")
+    refresh_token = response_data.get("refresh_token")
+
+    if not access_token or not refresh_token:
+        raise ShippingOAuthError("O Melhor Envio não devolveu os tokens esperados.")
+
+    expires_in = response_data.get("expires_in")
+    expires_at = None
+
+    if expires_in is not None:
+        try:
+            expires_at = timezone.now() + timedelta(seconds=int(expires_in))
+        except (TypeError, ValueError):
+            expires_at = None
+
+    scope = response_data.get(
+        "scope",
+        "shipping-calculate",
+    )
+
+    if isinstance(scope, list):
+        scope = " ".join(scope)
+
+    credential, _ = MelhorEnvioCredential.objects.update_or_create(
+        pk=1,
+        defaults={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": response_data.get(
+                "token_type",
+                "Bearer",
+            ),
+            "scope": str(scope),
+            "expires_at": expires_at,
+        },
+    )
+
+    return credential
+
+
+def get_melhor_envio_access_token():
+    if settings.MELHOR_ENVIO_ACCESS_TOKEN:
+        return settings.MELHOR_ENVIO_ACCESS_TOKEN
+
+    return (
+        MelhorEnvioCredential.objects.filter(pk=1)
+        .values_list("access_token", flat=True)
+        .first()
+        or ""
+    )
+
+
 def melhor_envio_configured():
     return bool(
         settings.MELHOR_ENVIO_BASE_URL
-        and settings.MELHOR_ENVIO_ACCESS_TOKEN
+        and get_melhor_envio_access_token()
         and settings.MELHOR_ENVIO_ORIGIN_POSTAL_CODE
         and settings.MELHOR_ENVIO_USER_AGENT
     )
@@ -81,9 +209,9 @@ def calculate_shipping(destination_postal_code, products):
         },
         "products": products,
     }
-
+    access_token = get_melhor_envio_access_token()
     headers = {
-        "Authorization": (f"Bearer {settings.MELHOR_ENVIO_ACCESS_TOKEN}"),
+        "Authorization": (f"Bearer {access_token}"),
         "Accept": "application/json",
         "Content-Type": "application/json",
         "User-Agent": settings.MELHOR_ENVIO_USER_AGENT,
