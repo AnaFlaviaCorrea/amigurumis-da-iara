@@ -50,10 +50,25 @@ MERCADO_PAGO_WEBHOOK_SECRET = os.getenv("MERCADO_PAGO_WEBHOOK_SECRET", "")
 MELHOR_ENVIO_BASE_URL = os.getenv(
     "MELHOR_ENVIO_BASE_URL",
     "https://sandbox.melhorenvio.com.br",
-).rstrip("/")
+)
 
 MELHOR_ENVIO_ACCESS_TOKEN = os.getenv(
     "MELHOR_ENVIO_ACCESS_TOKEN",
+    "",
+)
+
+MELHOR_ENVIO_CLIENT_ID = os.getenv(
+    "MELHOR_ENVIO_CLIENT_ID",
+    "",
+)
+
+MELHOR_ENVIO_CLIENT_SECRET = os.getenv(
+    "MELHOR_ENVIO_CLIENT_SECRET",
+    "",
+)
+
+MELHOR_ENVIO_REDIRECT_URI = os.getenv(
+    "MELHOR_ENVIO_REDIRECT_URI",
     "",
 )
 
