@@ -130,16 +130,121 @@ def exchange_authorization_code(code):
     return credential
 
 
+def refresh_melhor_envio_credential(credential=None):
+    if not melhor_envio_oauth_configured():
+        raise ShippingConfigurationError("O OAuth do Melhor Envio não foi configurado.")
+
+    if credential is None:
+        credential = MelhorEnvioCredential.objects.filter(pk=1).first()
+
+    if credential is None or not credential.refresh_token:
+        raise ShippingOAuthError("Não existe refresh token do Melhor Envio.")
+
+    try:
+        response = requests.post(
+            (f"{settings.MELHOR_ENVIO_BASE_URL}" "/oauth/token"),
+            data={
+                "grant_type": "refresh_token",
+                "client_id": settings.MELHOR_ENVIO_CLIENT_ID,
+                "client_secret": (settings.MELHOR_ENVIO_CLIENT_SECRET),
+                "refresh_token": credential.refresh_token,
+            },
+            headers={
+                "Accept": "application/json",
+            },
+            timeout=20,
+        )
+    except requests.RequestException as error:
+        raise ShippingOAuthError(
+            "Não foi possível renovar o acesso ao Melhor Envio."
+        ) from error
+
+    try:
+        response_data = response.json()
+    except ValueError as error:
+        raise ShippingOAuthError(
+            "O Melhor Envio devolveu uma resposta inválida " "ao renovar o acesso."
+        ) from error
+
+    if not response.ok:
+        if isinstance(response_data, dict):
+            message = (
+                response_data.get("message")
+                or response_data.get("error_description")
+                or response_data.get("error")
+            )
+        else:
+            message = None
+
+        raise ShippingOAuthError(
+            message or "Não foi possível renovar o acesso ao Melhor Envio."
+        )
+
+    if not isinstance(response_data, dict):
+        raise ShippingOAuthError(
+            "O Melhor Envio devolveu um formato inesperado " "ao renovar o acesso."
+        )
+
+    access_token = response_data.get("access_token")
+
+    if not access_token:
+        raise ShippingOAuthError("O Melhor Envio não devolveu um novo access token.")
+
+    # Alguns provedores geram um refresh token novo;
+    # outros mantêm o anterior.
+    refresh_token = response_data.get("refresh_token") or credential.refresh_token
+
+    expires_in = response_data.get("expires_in")
+    expires_at = None
+
+    if expires_in is not None:
+        try:
+            expires_at = timezone.now() + timedelta(seconds=int(expires_in))
+        except (TypeError, ValueError):
+            expires_at = None
+
+    scope = response_data.get("scope") or credential.scope
+
+    if isinstance(scope, list):
+        scope = " ".join(scope)
+
+    credential.access_token = access_token
+    credential.refresh_token = refresh_token
+    credential.token_type = (
+        response_data.get("token_type") or credential.token_type or "Bearer"
+    )
+    credential.scope = str(scope or "shipping-calculate")
+    credential.expires_at = expires_at
+
+    credential.save(
+        update_fields=(
+            "access_token",
+            "refresh_token",
+            "token_type",
+            "scope",
+            "expires_at",
+            "updated_at",
+        )
+    )
+
+    return credential
+
+
 def get_melhor_envio_access_token():
     if settings.MELHOR_ENVIO_ACCESS_TOKEN:
         return settings.MELHOR_ENVIO_ACCESS_TOKEN
 
-    return (
-        MelhorEnvioCredential.objects.filter(pk=1)
-        .values_list("access_token", flat=True)
-        .first()
-        or ""
-    )
+    credential = MelhorEnvioCredential.objects.filter(pk=1).first()
+
+    if credential is None:
+        return ""
+
+    refresh_limit = timezone.now() + timedelta(minutes=5)
+
+    if credential.expires_at is not None and credential.expires_at <= refresh_limit:
+        credential = refresh_melhor_envio_credential(credential)
+
+    return credential.access_token or ""
 
 
 def melhor_envio_configured():

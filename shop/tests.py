@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
+from datetime import timedelta
 
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
@@ -11,6 +12,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from shop.shipping import (
     build_authorization_url,
@@ -32,6 +34,10 @@ from .shipping import (
     calculate_shipping,
     normalize_postal_code,
     build_cart_shipping_products,
+    build_authorization_url,
+    exchange_authorization_code,
+    get_melhor_envio_access_token,
+    refresh_melhor_envio_credential,
 )
 
 
@@ -1581,12 +1587,13 @@ class PaymentTests(TestCase):
 
 
 @override_settings(
-    MELHOR_ENVIO_BASE_URL="https://sandbox.melhorenvio.com.br",
+    MELHOR_ENVIO_BASE_URL=("https://sandbox.melhorenvio.com.br"),
     MELHOR_ENVIO_CLIENT_ID="client-id-teste",
     MELHOR_ENVIO_CLIENT_SECRET="client-secret-teste",
     MELHOR_ENVIO_REDIRECT_URI=(
         "https://loja.exemplo.com/" "loja/melhor-envio/callback/"
     ),
+    MELHOR_ENVIO_ACCESS_TOKEN="",
 )
 class MelhorEnvioOAuthTests(TestCase):
     def setUp(self):
@@ -1766,4 +1773,155 @@ class MelhorEnvioOAuthTests(TestCase):
         self.assertEqual(
             request_data["redirect_uri"],
             ("https://loja.exemplo.com/" "loja/melhor-envio/callback/"),
+        )
+
+    @patch("shop.shipping.refresh_melhor_envio_credential")
+    def test_valid_token_is_not_refreshed(
+        self,
+        refresh_credential,
+    ):
+        MelhorEnvioCredential.objects.create(
+            pk=1,
+            access_token="token-ainda-valido",
+            refresh_token="refresh-token",
+            token_type="Bearer",
+            scope="shipping-calculate",
+            expires_at=(timezone.now() + timedelta(hours=1)),
+        )
+
+        access_token = get_melhor_envio_access_token()
+
+        self.assertEqual(
+            access_token,
+            "token-ainda-valido",
+        )
+        refresh_credential.assert_not_called()
+
+    @patch("shop.shipping.refresh_melhor_envio_credential")
+    def test_token_near_expiration_is_refreshed(
+        self,
+        refresh_credential,
+    ):
+        credential = MelhorEnvioCredential.objects.create(
+            pk=1,
+            access_token="token-antigo",
+            refresh_token="refresh-token",
+            token_type="Bearer",
+            scope="shipping-calculate",
+            expires_at=(timezone.now() + timedelta(minutes=1)),
+        )
+
+        def simulate_refresh(received_credential):
+            received_credential.access_token = "token-renovado"
+            return received_credential
+
+        refresh_credential.side_effect = simulate_refresh
+
+        access_token = get_melhor_envio_access_token()
+
+        self.assertEqual(
+            access_token,
+            "token-renovado",
+        )
+        refresh_credential.assert_called_once_with(credential)
+
+    @patch("shop.shipping.requests.post")
+    def test_refresh_saves_new_tokens(
+        self,
+        mocked_post,
+    ):
+        credential = MelhorEnvioCredential.objects.create(
+            pk=1,
+            access_token="token-antigo",
+            refresh_token="refresh-antigo",
+            token_type="Bearer",
+            scope="shipping-calculate",
+            expires_at=timezone.now(),
+        )
+
+        mocked_response = mocked_post.return_value
+        mocked_response.ok = True
+        mocked_response.json.return_value = {
+            "access_token": "token-novo",
+            "refresh_token": "refresh-novo",
+            "token_type": "Bearer",
+            "expires_in": 2592000,
+            "scope": "shipping-calculate",
+        }
+
+        refresh_melhor_envio_credential(credential)
+
+        credential.refresh_from_db()
+
+        self.assertEqual(
+            credential.access_token,
+            "token-novo",
+        )
+        self.assertEqual(
+            credential.refresh_token,
+            "refresh-novo",
+        )
+        self.assertGreater(
+            credential.expires_at,
+            timezone.now(),
+        )
+
+        request_url = mocked_post.call_args.args[0]
+        request_data = mocked_post.call_args.kwargs["data"]
+
+        self.assertEqual(
+            request_url,
+            "https://sandbox.melhorenvio.com.br/oauth/token",
+        )
+        self.assertEqual(
+            request_data["grant_type"],
+            "refresh_token",
+        )
+        self.assertEqual(
+            request_data["refresh_token"],
+            "refresh-antigo",
+        )
+        self.assertEqual(
+            request_data["client_id"],
+            "client-id-teste",
+        )
+        self.assertEqual(
+            request_data["client_secret"],
+            "client-secret-teste",
+        )
+
+    @patch("shop.shipping.requests.post")
+    def test_refresh_preserves_existing_refresh_token(
+        self,
+        mocked_post,
+    ):
+        credential = MelhorEnvioCredential.objects.create(
+            pk=1,
+            access_token="token-antigo",
+            refresh_token="refresh-existente",
+            token_type="Bearer",
+            scope="shipping-calculate",
+            expires_at=timezone.now(),
+        )
+
+        mocked_response = mocked_post.return_value
+        mocked_response.ok = True
+        mocked_response.json.return_value = {
+            "access_token": "token-novo",
+            "token_type": "Bearer",
+            "expires_in": 2592000,
+            "scope": "shipping-calculate",
+        }
+
+        refresh_melhor_envio_credential(credential)
+
+        credential.refresh_from_db()
+
+        self.assertEqual(
+            credential.access_token,
+            "token-novo",
+        )
+        self.assertEqual(
+            credential.refresh_token,
+            "refresh-existente",
         )
