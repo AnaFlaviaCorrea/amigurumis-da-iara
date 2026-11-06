@@ -188,7 +188,10 @@ def calculate_shipping_quotes(request):
             {"error": str(error)},
             status=400,
         )
-    except ShippingConfigurationError as error:
+    except (
+        ShippingConfigurationError,
+        ShippingOAuthError,
+    ) as error:
         return JsonResponse(
             {"error": str(error)},
             status=503,

@@ -31,6 +31,7 @@ from .models import (
 from .shipping import (
     ShippingAPIError,
     ShippingConfigurationError,
+    ShippingOAuthError,
     calculate_shipping,
     normalize_postal_code,
     build_cart_shipping_products,
@@ -454,6 +455,31 @@ class ShippingQuoteViewTests(TestCase):
         self.assertEqual(
             response.json()["error"],
             "Serviço de frete indisponível.",
+        )
+
+    @patch("shop.views.calculate_shipping")
+    def test_converts_oauth_failure_to_service_unavailable(
+        self,
+        calculate,
+    ):
+        calculate.side_effect = ShippingOAuthError(
+            "Não foi possível renovar o acesso ao Melhor Envio."
+        )
+
+        response = self.client.post(
+            self.url,
+            data=json.dumps(
+                {
+                    "postal_code": "88058-000",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json()["error"],
+            "Não foi possível renovar o acesso ao Melhor Envio.",
         )
 
 
