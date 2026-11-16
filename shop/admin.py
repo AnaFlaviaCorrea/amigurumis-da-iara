@@ -44,14 +44,19 @@ class ProductAdmin(admin.ModelAdmin):
         "name",
         "category",
         "product_type",
-        "shipping_profile",
         "price",
         "stock",
-        "requires_reference_photos",
+        "shipping_profile",
         "active",
         "featured",
     )
-    list_editable = ("price", "stock", "active", "featured")
+    list_editable = (
+        "price",
+        "stock",
+        "shipping_profile",
+        "active",
+        "featured",
+    )
     list_filter = (
         "product_type",
         "category",
